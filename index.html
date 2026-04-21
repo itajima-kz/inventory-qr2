@@ -114,7 +114,7 @@
   .fi::placeholder{color:#a0b0cc;font-weight:400;font-size:12px;}
   .fi.filled{background:var(--filled-lt);border-color:var(--filled);color:var(--filled);font-weight:700;}
   .fi.warn{background:var(--warn-lt);border-color:var(--warn);color:var(--warn);}
-  textarea.fi{resize:none;line-height:1.45;min-height:38px;}
+  textarea.fi{resize:none;line-height:1.45;min-height:38px;word-break:break-all;white-space:pre-wrap;overflow-wrap:break-word;}
   select.fi{background-image:url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='14' height='9'%3E%3Cpath d='M1 1l6 6 6-6' stroke='%232e6be0' stroke-width='2.2' fill='none' stroke-linecap='round' stroke-linejoin='round'/%3E%3C/svg%3E");
     background-repeat:no-repeat;background-position:right 10px center;
     padding-right:30px;cursor:pointer;}
@@ -442,6 +442,7 @@
         <label class="fl" for="zuno">図番</label>
         <input type="text" class="fi" id="zuno"
           placeholder="QRスキャン後に自動入力 または直接入力"
+          autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false"
           oninput="onZunoIn()" onblur="onZunoBlur()">
       </div>
       <button type="button" class="scanbtn msrch" id="sb-msrch" onclick="doManSrch()">&#128270; マスタ検索</button>
@@ -455,8 +456,9 @@
       <div class="fw">
         <label class="fl" for="sei">製番<span class="sub">（任意・9桁数字）</span></label>
         <input type="text" class="fi" id="sei" placeholder="例: 012345678"
-          maxlength="9" inputmode="numeric"
-          oninput="this.value=this.value.replace(/[^0-9]/g,'');updReg()">
+          maxlength="9" inputmode="numeric" pattern="[0-9]*"
+          autocorrect="off" autocomplete="off"
+          oninput="var p=this.selectionStart;this.value=this.value.replace(/[^0-9]/g,'');this.setSelectionRange(p,p);updReg()">
       </div>
 
       <div class="fw">
@@ -577,6 +579,8 @@
     <button type="button" class="m-ok" onclick="closeMod()">OK</button>
   </div>
 </div>
+<!-- ⑥ iOSゴーストクリック防止用: hideLoad後300ms だけ表示 -->
+<div id="ghost-block" style="display:none;position:fixed;inset:0;z-index:399;background:transparent;"></div>
 <div id="toast"></div>
 <div id="load"><div class="spin"></div><div class="ld-lbl" id="ldlbl">処理中...</div></div>
 
@@ -769,8 +773,8 @@ var _loadingMaster = false;  /* 二重ロード防止フラグ */
 async function reloadMaster() {
   if (_loadingMaster) return;
   await loadAllMaster();
-  /* ① ロード完了後はマスタタブを明示的に表示 */
-  sw('master');
+  /* ⑥ sw('master') を呼ばない: loadAllMaster内でrendMaster()が呼ばれている。
+       sw()を呼ぶとゴーストクリックと競合してタブがリセットされるケースがある。 */
 }
 
 /* ============================================================
@@ -1021,12 +1025,14 @@ async function doOCR() {
     var inp = document.getElementById('opi');
     box.classList.add('on');
     if (res.part) {
-      inp.value = res.part.toUpperCase(); inp.className = '';
+      /* ② OCR読取結果にH15→HF置換を適用 */
+      inp.value = normalizeOcrCode(res.part); inp.className = '';
       document.getElementById('oph').textContent = '修正が必要な場合は直接編集し、マスタ検索を押してください';
       document.getElementById('sb-srch').style.display = 'flex';
       toast('図番を読み取りました', 'ok');
     } else if (rawT) {
-      var rv = rawT.replace(/\r?\n/g,' ').substring(0,40).toUpperCase();
+      /* ② rawTextにも記号除去・H15→HF適用（部分修正しやすくする） */
+      var rv = normalizeOcrCode(rawT.replace(/\r?\n/g,' ').trim().substring(0, 40));
       inp.value = rv; inp.className = 'editing';
       document.getElementById('oph').textContent = '図番部分のみ残して修正し、マスタ検索してください';
       document.getElementById('sb-srch').style.display = 'flex';
@@ -1085,6 +1091,17 @@ function capFrame() {
 }
 
 /* ============================================================
+   ① ② OCRコード正規化: 記号除去 + H15→HF置換
+   ============================================================ */
+function normalizeOcrCode(raw) {
+  /* ① 記号を除去（英数字・ハイフンのみ残す） */
+  var s = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  /* ② H15 で始まる場合は HF に置換 */
+  s = s.replace(/^H15/, 'HF');
+  return s;
+}
+
+/* ============================================================
    OCRパート編集
    ============================================================ */
 function opiEdit() {
@@ -1108,7 +1125,9 @@ function opiBlur() {
    マスタ検索（OCR後・手入力後）
    ============================================================ */
 function doOcrSrch() {
-  var code = document.getElementById('opi').value.trim().toUpperCase();
+  /* ① 記号除去 + ② H15→HF置換してからマスタ検索 */
+  var raw = document.getElementById('opi').value.trim();
+  var code = normalizeOcrCode(raw);
   if (!code || code === '----') { toast('図番を入力してください', 'err'); return; }
   document.getElementById('opi').value = code;
   document.getElementById('opi').className = '';
@@ -1174,10 +1193,15 @@ function applyCode(code, src) {
    図番手入力
    ============================================================ */
 function onZunoIn() {
+  /* ③ 図番: 英数字のみ許可、英字は大文字変換 */
   var el  = document.getElementById('zuno');
   var pos = el.selectionStart;
-  var up  = el.value.toUpperCase();
-  if (el.value !== up) { el.value = up; el.setSelectionRange(pos, pos); }
+  var cleaned = el.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  var diff = el.value.length - cleaned.length;
+  if (el.value !== cleaned) {
+    el.value = cleaned;
+    el.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+  }
   curFromMst = false; curScanSrc = '';
   el.className = 'fi';
   updReg(); updManSrch();
@@ -1455,7 +1479,15 @@ function showLoad(t) {
   document.getElementById('ldlbl').textContent = t || '処理中...';
   document.getElementById('load').classList.add('on');
 }
-function hideLoad() { document.getElementById('load').classList.remove('on'); }
+function hideLoad() {
+  document.getElementById('load').classList.remove('on');
+  /* ⑥ iOS ゴーストクリック防止: ローディング消去後 350ms だけ透明オーバーレイでタップを吸収 */
+  var gb = document.getElementById('ghost-block');
+  if (gb) {
+    gb.style.display = 'block';
+    setTimeout(function() { gb.style.display = 'none'; }, 350);
+  }
+}
 
 function h(s) {
   return String(s)
