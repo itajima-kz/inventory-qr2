@@ -1,0 +1,1621 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+  <!-- PWA / iPhoneホーム画面追加対応 -->
+  <meta name="apple-mobile-web-app-capable" content="yes">
+  <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+  <meta name="apple-mobile-web-app-title" content="QR棚卸">
+  <meta name="theme-color" content="#1a3fa0">
+  <title>QR棚卸アプリ</title>
+
+  <!--
+    ====================================================
+    【GitHub Pages 配置方法】
+    1. GitHubで新リポジトリ作成（例: qr-inventory）
+    2. このファイルを index.html としてアップロード
+    3. Settings → Pages → Branch: main / root → Save
+    4. https://<ユーザー名>.github.io/qr-inventory/ で使用可能
+    5. iPhoneのSafariで開き「ホーム画面に追加」でアプリ化
+    ====================================================
+  -->
+
+  <!-- jsQR: QRコード解析ライブラリ (CDN) -->
+  <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+
+  <style>
+    /* ============================
+       デザイントークン（棚卸アプリ仕様）
+       ============================ */
+    :root {
+      --primary:        #1a3fa0;
+      --primary-dark:   #0d2870;
+      --accent-blue:    #2e6be0;
+      --accent-cyan:    #40a8c8;
+      --accent-purple:  #7b3ff2;
+      --accent-green:   #0f9e6e;
+      --bg:             #f0f4fb;
+      --white:          #ffffff;
+      --text:           #1a2340;
+      --text-light:     #6b7a99;
+      --card-shadow:    0 2px 14px rgba(30,50,120,0.10);
+      --border:         #c3d3f5;
+      --hdr:            58px; /* JS で上書き */
+    }
+
+    *, *::before, *::after {
+      margin: 0; padding: 0; box-sizing: border-box;
+      -webkit-tap-highlight-color: transparent;
+    }
+
+    html { height: -webkit-fill-available; }
+
+    body {
+      font-family: 'Zen Maru Gothic', 'Noto Sans JP', sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      min-height: 100vh;
+      min-height: -webkit-fill-available;
+      overflow: hidden;
+      display: flex;
+      flex-direction: column;
+    }
+
+    /* Google Fonts を遅延ロード（オフライン時はシステムフォント） */
+    @import url('https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap');
+
+    /* ============================
+       ヘッダー
+       ============================ */
+    .header {
+      position: fixed;
+      top: 0; left: 0; right: 0;
+      z-index: 100;
+      background: linear-gradient(135deg, var(--primary) 0%, var(--primary-dark) 100%);
+      padding-top: max(env(safe-area-inset-top), 38px);
+      box-shadow: 0 3px 20px rgba(13,40,112,0.45);
+    }
+
+    .header-inner {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 7px 15px 8px;
+    }
+
+    .header-title {
+      color: #fff;
+      font-size: 16px;
+      font-weight: 700;
+      letter-spacing: 0.04em;
+      display: flex;
+      align-items: center;
+      gap: 7px;
+    }
+
+    .pending-badge {
+      font-size: 11px;
+      font-weight: 700;
+      padding: 4px 11px;
+      border-radius: 20px;
+      background: rgba(255,255,255,0.22);
+      color: #fff;
+      transition: background 0.3s;
+    }
+
+    .pending-badge.has-pending { background: var(--accent-cyan); }
+
+    /* タブバー */
+    .nav-tabs {
+      display: flex;
+      border-top: 1px solid rgba(255,255,255,0.16);
+    }
+
+    .nav-tab {
+      flex: 1;
+      padding: 7px 4px 8px;
+      border: none;
+      background: none;
+      color: rgba(255,255,255,0.52);
+      font-size: 10px;
+      font-weight: 500;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      gap: 1px;
+      position: relative;
+      transition: color 0.15s;
+    }
+
+    .nav-tab.active { color: #fff; }
+
+    .nav-tab.active::after {
+      content: '';
+      position: absolute;
+      bottom: 0; left: 20%; right: 20%;
+      height: 2px;
+      background: var(--accent-cyan);
+      border-radius: 2px 2px 0 0;
+    }
+
+    .nav-icon { font-size: 18px; line-height: 1.2; }
+
+    /* ============================
+       スクロール領域
+       ============================ */
+    .main {
+      flex: 1;
+      overflow-y: auto;
+      overflow-x: hidden;
+      -webkit-overflow-scrolling: touch;
+      padding-top: var(--hdr);
+      padding-bottom: max(env(safe-area-inset-bottom), 12px);
+    }
+
+    /* ============================
+       View切替
+       ============================ */
+    .view { display: none; }
+    .view.active { display: block; }
+    #view-scan.active {
+      display: flex;
+      flex-direction: column;
+      min-height: calc(100dvh - var(--hdr));
+    }
+
+    /* ============================
+       スキャンビュー
+       ============================ */
+    .camera-wrap {
+      position: relative;
+      background: #000;
+      width: 100%;
+      flex-shrink: 0;
+      overflow: hidden;
+    }
+
+    #cam-video {
+      width: 100%;
+      display: block;
+      object-fit: cover;
+      /* 高さは JS で設定（iOS getBoundingClientRect バグ回避） */
+    }
+
+    #qr-canvas { display: none; }
+
+    /* 暗幕 + ガイド */
+    .cam-overlay {
+      position: absolute; inset: 0;
+      pointer-events: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+    }
+
+    .cam-mask {
+      position: absolute; inset: 0;
+      background: rgba(0,0,0,0.45);
+      -webkit-mask-image: radial-gradient(ellipse 215px 215px at center, transparent 99%, black 100%);
+      mask-image:         radial-gradient(ellipse 215px 215px at center, transparent 99%, black 100%);
+    }
+
+    .scan-box {
+      position: relative;
+      width: 215px; height: 215px;
+      z-index: 1;
+    }
+
+    /* 四隅コーナー */
+    .scan-box::before, .scan-box::after,
+    .scan-box .cb, .scan-box .cd {
+      content: '';
+      position: absolute;
+      width: 32px; height: 32px;
+      border-color: var(--accent-cyan);
+      border-style: solid;
+    }
+
+    .scan-box::before { top: 0; left: 0;  border-width: 3px 0 0 3px; border-radius: 5px 0 0 0; }
+    .scan-box::after  { top: 0; right: 0; border-width: 3px 3px 0 0; border-radius: 0 5px 0 0; }
+    .scan-box .cb     { bottom: 0; right: 0; border-width: 0 3px 3px 0; border-radius: 0 0 5px 0; }
+    .scan-box .cd     { bottom: 0; left: 0;  border-width: 0 0 3px 3px; border-radius: 0 0 0 5px; }
+
+    /* スキャンライン */
+    .scan-line {
+      position: absolute;
+      left: 4px; right: 4px; height: 2px;
+      background: linear-gradient(90deg, transparent, var(--accent-cyan), transparent);
+      animation: scan 2s ease-in-out infinite;
+      top: 8px;
+    }
+
+    @keyframes scan {
+      0%   { top: 8px; opacity: 0.3; }
+      20%  { opacity: 1; }
+      80%  { opacity: 1; }
+      100% { top: calc(100% - 10px); opacity: 0.3; }
+    }
+
+    .cam-hint {
+      text-align: center;
+      color: rgba(255,255,255,0.85);
+      font-size: 12px;
+      font-weight: 500;
+      padding: 9px 16px;
+      background: #000;
+      letter-spacing: 0.03em;
+      flex-shrink: 0;
+    }
+
+    /* カメラ起動・停止ボタン */
+    .cam-btn {
+      width: 100%;
+      padding: 15px;
+      border: none;
+      background: linear-gradient(135deg, var(--accent-blue), var(--primary));
+      color: #fff;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      flex-shrink: 0;
+      transition: opacity 0.15s;
+    }
+
+    .cam-btn.stop { background: linear-gradient(135deg, #545870, #343650); }
+    .cam-btn:active { opacity: 0.84; }
+
+    /* スキャン結果リスト */
+    .scan-results {
+      flex: 1;
+      overflow-y: auto;
+      -webkit-overflow-scrolling: touch;
+      padding: 12px 13px 4px;
+    }
+
+    /* ============================
+       結果カード（スキャン直後）
+       ============================ */
+    .result-card {
+      background: var(--white);
+      border-radius: 16px;
+      padding: 13px 14px;
+      margin-bottom: 10px;
+      box-shadow: var(--card-shadow);
+      border: 1.5px solid var(--border);
+      animation: fadeUp 0.25s ease;
+      transition: border-color 0.5s;
+    }
+
+    @keyframes fadeUp {
+      from { opacity: 0; transform: translateY(8px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    .result-card.flash { border-color: var(--accent-cyan); }
+
+    .rc-head {
+      display: flex;
+      justify-content: space-between;
+      align-items: baseline;
+      margin-bottom: 3px;
+    }
+
+    .rc-code {
+      font-size: 17px;
+      font-weight: 700;
+      color: var(--accent-blue);
+    }
+
+    .rc-time { font-size: 11px; color: var(--text-light); }
+
+    .rc-name {
+      font-size: 13px;
+      color: var(--text);
+      margin-bottom: 10px;
+    }
+
+    .rc-name.unknown { color: #c83030; }
+
+    .rc-foot {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+    }
+
+    .qty-label { font-size: 12px; color: var(--text-light); }
+
+    .qty-wrap {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+
+    .qty-btn {
+      width: 30px; height: 30px;
+      border-radius: 50%;
+      border: 2px solid var(--accent-blue);
+      background: none;
+      color: var(--accent-blue);
+      font-size: 18px;
+      font-weight: 700;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      transition: all 0.1s;
+    }
+
+    .qty-btn:active { background: var(--accent-blue); color: #fff; transform: scale(0.9); }
+
+    .qty-val {
+      font-size: 22px;
+      font-weight: 700;
+      min-width: 36px;
+      text-align: center;
+    }
+
+    .qty-save {
+      margin-left: auto;
+      background: linear-gradient(135deg, var(--accent-green), #0a7a52);
+      color: #fff;
+      border: none;
+      border-radius: 20px;
+      padding: 7px 16px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 2px 8px rgba(15,158,110,0.35);
+      transition: all 0.1s;
+    }
+
+    .qty-save:active { transform: scale(0.93); }
+
+    /* ============================
+       共通: 空ステート
+       ============================ */
+    .empty {
+      text-align: center;
+      padding: 44px 18px;
+      color: var(--text-light);
+    }
+
+    .empty-ico { font-size: 44px; margin-bottom: 10px; }
+    .empty-txt { font-size: 13px; line-height: 1.8; }
+
+    /* ============================
+       共通: ビューヘッダー
+       ============================ */
+    .vhd {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      padding: 14px 15px 10px;
+    }
+
+    .vhd-title { font-size: 15px; font-weight: 700; }
+
+    .pill {
+      background: var(--accent-blue);
+      color: #fff;
+      font-size: 11px;
+      font-weight: 700;
+      padding: 3px 11px;
+      border-radius: 20px;
+    }
+
+    /* ============================
+       履歴ビュー
+       ============================ */
+    .send-btn {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 7px;
+      width: calc(100% - 26px);
+      margin: 0 13px 12px;
+      padding: 14px;
+      background: linear-gradient(135deg, var(--accent-green), #0a7a52);
+      color: #fff;
+      border: none;
+      border-radius: 13px;
+      font-size: 15px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      box-shadow: 0 3px 14px rgba(15,158,110,0.38);
+      transition: all 0.12s;
+    }
+
+    .send-btn:active { transform: scale(0.97); }
+    .send-btn:disabled { opacity: 0.4; pointer-events: none; }
+
+    .hist-list { padding: 0 13px; }
+
+    .hist-item {
+      background: var(--white);
+      border-radius: 13px;
+      padding: 11px 13px;
+      margin-bottom: 8px;
+      box-shadow: var(--card-shadow);
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      animation: fadeUp 0.2s ease;
+    }
+
+    .hist-item.sent { opacity: 0.48; border-color: #c8e0d4; }
+
+    .hi-ico {
+      width: 38px; height: 38px;
+      border-radius: 10px;
+      background: linear-gradient(135deg, #e8f0fe, #c8d8f8);
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      font-size: 18px;
+      flex-shrink: 0;
+    }
+
+    .hist-item.sent .hi-ico { background: linear-gradient(135deg, #e0f5eb, #b8e0cc); }
+
+    .hi-info { flex: 1; min-width: 0; }
+
+    .hi-code { font-size: 14px; font-weight: 700; color: var(--accent-blue); }
+
+    .hi-name {
+      font-size: 11px;
+      color: var(--text-light);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+
+    .hi-right { text-align: right; flex-shrink: 0; }
+
+    .hi-qty { font-size: 20px; font-weight: 700; }
+
+    .hi-meta { font-size: 10px; color: var(--text-light); }
+
+    .sent-tag {
+      display: inline-block;
+      background: var(--accent-green);
+      color: #fff;
+      font-size: 9px;
+      font-weight: 700;
+      padding: 1px 6px;
+      border-radius: 8px;
+    }
+
+    /* ============================
+       マスタビュー
+       ============================ */
+    .master-acts {
+      display: flex;
+      gap: 8px;
+      padding: 12px 13px 8px;
+    }
+
+    .act-btn {
+      flex: 1;
+      padding: 11px 4px;
+      border: none;
+      border-radius: 10px;
+      font-size: 12px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 4px;
+      transition: all 0.12s;
+    }
+
+    .act-btn:active { transform: scale(0.94); }
+    .btn-blue   { background: linear-gradient(135deg, var(--accent-blue), var(--primary));   color:#fff; box-shadow: 0 2px 9px rgba(46,107,224,0.32); }
+    .btn-purple { background: linear-gradient(135deg, var(--accent-purple), #5c2bc0);        color:#fff; box-shadow: 0 2px 9px rgba(123,63,242,0.32); }
+    .btn-cyan   { background: linear-gradient(135deg, var(--accent-cyan), #2a90b8);          color:#fff; box-shadow: 0 2px 9px rgba(64,168,200,0.32); }
+
+    .search-wrap { padding: 0 13px 10px; }
+
+    .search-inp {
+      width: 100%;
+      padding: 11px 14px;
+      border: 1.5px solid var(--border);
+      border-radius: 10px;
+      font-size: 14px;
+      font-family: inherit;
+      background: #fff;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .search-inp:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(46,107,224,0.13);
+    }
+
+    .master-list { padding: 0 13px; }
+
+    .master-item {
+      background: #fff;
+      border-radius: 12px;
+      padding: 11px 12px;
+      margin-bottom: 8px;
+      box-shadow: var(--card-shadow);
+      border: 1.5px solid var(--border);
+      display: flex;
+      align-items: center;
+      gap: 9px;
+      animation: fadeUp 0.2s ease;
+    }
+
+    .mi-info { flex: 1; min-width: 0; }
+    .mi-code { font-size: 14px; font-weight: 700; color: var(--accent-blue); }
+    .mi-name { font-size: 13px; color: var(--text); }
+    .mi-sub  { font-size: 11px; color: var(--text-light); }
+
+    .mi-del {
+      width: 30px; height: 30px;
+      border: none;
+      background: #fee8e8;
+      color: #c03030;
+      border-radius: 8px;
+      font-size: 15px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      transition: background 0.1s;
+    }
+
+    .mi-del:active { background: #fcc; }
+
+    /* ============================
+       設定ビュー
+       ============================ */
+    .settings-sec { padding: 13px 13px 0; }
+
+    .sec-lbl {
+      font-size: 11px;
+      font-weight: 700;
+      color: var(--text-light);
+      text-transform: uppercase;
+      letter-spacing: 0.09em;
+      margin-bottom: 8px;
+    }
+
+    .set-card {
+      background: #fff;
+      border-radius: 14px;
+      box-shadow: var(--card-shadow);
+      border: 1.5px solid var(--border);
+      overflow: hidden;
+      margin-bottom: 2px;
+    }
+
+    .set-row {
+      padding: 12px 14px;
+      border-bottom: 1px solid var(--bg);
+    }
+
+    .set-row:last-child { border-bottom: none; }
+
+    .set-lbl {
+      font-size: 11px;
+      color: var(--text-light);
+      font-weight: 600;
+      margin-bottom: 7px;
+    }
+
+    .set-inp {
+      width: 100%;
+      padding: 11px 13px;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      font-size: 13px;
+      font-family: inherit;
+      background: #f8faff;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .set-inp:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(46,107,224,0.12);
+      background: #fff;
+    }
+
+    .danger-btn {
+      width: 100%;
+      padding: 12px;
+      background: #fff5f5;
+      color: #c03030;
+      border: 1.5px solid #f5c0c0;
+      border-radius: 10px;
+      font-size: 13px;
+      font-weight: 700;
+      font-family: inherit;
+      cursor: pointer;
+      transition: background 0.1s;
+    }
+
+    .danger-btn:active { background: #ffe0e0; }
+
+    .set-info {
+      font-size: 12px;
+      color: var(--text-light);
+      line-height: 1.8;
+    }
+
+    .url-display {
+      font-size: 10px;
+      color: var(--accent-blue);
+      word-break: break-all;
+      margin-top: 5px;
+      opacity: 0.8;
+    }
+
+    /* ============================
+       モーダル（ボトムシート）
+       ============================ */
+    .modal-bg {
+      position: fixed; inset: 0;
+      background: rgba(0,0,0,0.52);
+      z-index: 200;
+      display: flex;
+      align-items: flex-end;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.26s;
+    }
+
+    .modal-bg.open { opacity: 1; pointer-events: all; }
+
+    .modal {
+      background: #fff;
+      border-radius: 20px 20px 0 0;
+      width: 100%;
+      padding: 20px 17px;
+      padding-bottom: max(22px, calc(20px + env(safe-area-inset-bottom)));
+      transform: translateY(100%);
+      transition: transform 0.3s cubic-bezier(0.32,0,0.2,1);
+    }
+
+    .modal-bg.open .modal { transform: translateY(0); }
+
+    .modal-handle {
+      width: 40px; height: 4px;
+      background: #d0d8e8;
+      border-radius: 2px;
+      margin: 0 auto 18px;
+    }
+
+    .modal-ttl { font-size: 15px; font-weight: 700; margin-bottom: 15px; }
+
+    .mf { margin-bottom: 12px; }
+
+    .mf label {
+      display: block;
+      font-size: 11px;
+      color: var(--text-light);
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      margin-bottom: 6px;
+    }
+
+    .mf input {
+      width: 100%;
+      padding: 12px 13px;
+      border: 1.5px solid var(--border);
+      border-radius: 9px;
+      font-size: 15px;
+      font-family: inherit;
+      background: #f8faff;
+      outline: none;
+      transition: border-color 0.2s, box-shadow 0.2s;
+    }
+
+    .mf input:focus {
+      border-color: var(--accent-blue);
+      box-shadow: 0 0 0 3px rgba(46,107,224,0.12);
+      background: #fff;
+    }
+
+    .modal-btns { display: flex; gap: 10px; margin-top: 16px; }
+
+    .btn-cancel {
+      flex: 1; padding: 13px;
+      background: #eef2fb;
+      color: var(--text-light);
+      border: none; border-radius: 11px;
+      font-size: 14px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+    }
+
+    .btn-ok {
+      flex: 2; padding: 13px;
+      background: linear-gradient(135deg, var(--accent-blue), var(--primary));
+      color: #fff; border: none; border-radius: 11px;
+      font-size: 14px; font-weight: 700;
+      font-family: inherit; cursor: pointer;
+      box-shadow: 0 2px 10px rgba(46,107,224,0.32);
+    }
+
+    .btn-ok:active { opacity: 0.87; }
+
+    /* ============================
+       Toast
+       ============================ */
+    .toast {
+      position: fixed;
+      bottom: calc(18px + env(safe-area-inset-bottom));
+      left: 50%;
+      transform: translateX(-50%) translateY(70px);
+      background: rgba(20,30,60,0.88);
+      color: #fff;
+      padding: 11px 22px;
+      border-radius: 24px;
+      font-size: 13px;
+      font-weight: 500;
+      z-index: 500;
+      white-space: nowrap;
+      pointer-events: none;
+      backdrop-filter: blur(10px);
+      -webkit-backdrop-filter: blur(10px);
+      opacity: 0;
+      transition: transform 0.3s cubic-bezier(0.32,0,0.2,1), opacity 0.3s;
+    }
+
+    .toast.show { transform: translateX(-50%) translateY(0); opacity: 1; }
+    .toast.ok   { background: rgba(15,158,110,0.90); }
+    .toast.err  { background: rgba(200,50,50,0.90); }
+
+    /* ============================
+       ローディング
+       ============================ */
+    .loading {
+      position: fixed; inset: 0;
+      background: rgba(240,244,251,0.80);
+      backdrop-filter: blur(6px);
+      -webkit-backdrop-filter: blur(6px);
+      z-index: 400;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 16px;
+      opacity: 0;
+      pointer-events: none;
+      transition: opacity 0.2s;
+    }
+
+    .loading.show { opacity: 1; pointer-events: all; }
+
+    .spinner {
+      width: 46px; height: 46px;
+      border: 4px solid var(--border);
+      border-top-color: var(--accent-blue);
+      border-radius: 50%;
+      animation: spin 0.72s linear infinite;
+    }
+
+    @keyframes spin { to { transform: rotate(360deg); } }
+
+    .loading-lbl { font-size: 13px; color: var(--text-light); }
+  </style>
+</head>
+<body>
+
+  <!-- ===================== HEADER ===================== -->
+  <header class="header" id="app-hdr">
+    <div class="header-inner">
+      <div class="header-title">
+        <!-- QRアイコン SVG -->
+        <svg width="21" height="21" viewBox="0 0 24 24" fill="none"
+             stroke="rgba(255,255,255,0.9)" stroke-width="2.2"
+             stroke-linecap="round" stroke-linejoin="round">
+          <rect x="3" y="3" width="7" height="7" rx="1"/>
+          <rect x="14" y="3" width="7" height="7" rx="1"/>
+          <rect x="3" y="14" width="7" height="7" rx="1"/>
+          <path d="M14 14h2v2h-2zM18 14h2v2h-2v2h-1zM14 18h2v3h-2zM19 19h2v2h-2z"/>
+        </svg>
+        QR棚卸アプリ
+      </div>
+      <span class="pending-badge" id="pending-badge">未送信: 0件</span>
+    </div>
+    <nav class="nav-tabs">
+      <button class="nav-tab active" id="tab-scan"     onclick="switchTab('scan')">
+        <span class="nav-icon">📷</span>スキャン
+      </button>
+      <button class="nav-tab" id="tab-history"  onclick="switchTab('history')">
+        <span class="nav-icon">📋</span>履歴
+      </button>
+      <button class="nav-tab" id="tab-master"   onclick="switchTab('master')">
+        <span class="nav-icon">🗃</span>マスタ
+      </button>
+      <button class="nav-tab" id="tab-settings" onclick="switchTab('settings')">
+        <span class="nav-icon">⚙️</span>設定
+      </button>
+    </nav>
+  </header>
+
+  <!-- ===================== MAIN ===================== -->
+  <div class="main" id="main">
+
+    <!-- ===== スキャンビュー ===== -->
+    <div class="view active" id="view-scan">
+
+      <!-- カメラ -->
+      <div class="camera-wrap" id="cam-wrap">
+        <video id="cam-video" playsinline autoplay muted></video>
+        <canvas id="qr-canvas"></canvas>
+        <div class="cam-mask"></div>
+        <div class="cam-overlay">
+          <div class="scan-box">
+            <div class="cb"></div>
+            <div class="cd"></div>
+            <div class="scan-line"></div>
+          </div>
+        </div>
+      </div>
+
+      <div class="cam-hint">QRコードをガイド枠に合わせてください</div>
+
+      <button class="cam-btn" id="cam-btn" onclick="toggleCamera()">
+        📷 カメラを起動する
+      </button>
+
+      <!-- スキャン結果 -->
+      <div class="scan-results" id="scan-results">
+        <div class="empty" id="scan-empty">
+          <div class="empty-ico">🔍</div>
+          <div class="empty-txt">カメラを起動してQRコードを<br>スキャンしてください</div>
+        </div>
+      </div>
+    </div>
+
+    <!-- ===== 履歴ビュー ===== -->
+    <div class="view" id="view-history">
+      <div class="vhd">
+        <span class="vhd-title">スキャン履歴</span>
+        <span class="pill" id="hist-count">0件</span>
+      </div>
+      <button class="send-btn" id="send-btn" onclick="sendData()" disabled>
+        🚀 一括送信（未送信分）
+      </button>
+      <div class="hist-list" id="hist-list"></div>
+    </div>
+
+    <!-- ===== マスタビュー ===== -->
+    <div class="view" id="view-master">
+      <div class="master-acts">
+        <button class="act-btn btn-blue"   onclick="openMasterModal()">➕ 追加</button>
+        <button class="act-btn btn-purple" onclick="importCSV()">📄 CSV</button>
+        <button class="act-btn btn-cyan"   onclick="loadSample()">🧪 サンプル</button>
+      </div>
+      <div class="search-wrap">
+        <input type="search" class="search-inp" id="master-search"
+               placeholder="コード・品名で検索…" oninput="renderMaster()">
+      </div>
+      <div class="master-list" id="master-list"></div>
+      <input type="file" id="csv-file" accept=".csv,text/csv"
+             style="display:none" onchange="handleCSV(event)">
+    </div>
+
+    <!-- ===== 設定ビュー ===== -->
+    <div class="view" id="view-settings">
+
+      <div class="settings-sec">
+        <div class="sec-lbl">送信先 API</div>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-lbl">GAS Web App URL（doPost のデプロイURL）</div>
+            <input type="url" class="set-inp" id="s-url"
+                   placeholder="https://script.google.com/macros/s/xxx/exec"
+                   oninput="saveSettings()">
+          </div>
+          <div class="set-row">
+            <div class="set-lbl">現場コード（スプシに記録されます）</div>
+            <input type="text" class="set-inp" id="s-loc"
+                   placeholder="例: PLANT-01" oninput="saveSettings()">
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-sec">
+        <div class="sec-lbl">マスタ API（任意）</div>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-lbl">マスタ取得URL（GAS doGet URL）</div>
+            <input type="url" class="set-inp" id="s-master-url"
+                   placeholder="https://script.google.com/macros/s/xxx/exec"
+                   oninput="saveSettings()">
+          </div>
+          <div class="set-row">
+            <button class="act-btn btn-blue" style="margin-top:2px"
+                    onclick="fetchRemoteMaster()">🔄 マスタをサーバーから取得</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-sec">
+        <div class="sec-lbl">データ管理</div>
+        <div class="set-card">
+          <div class="set-row">
+            <button class="danger-btn" onclick="clearSent()">✅ 送信済みデータを削除</button>
+          </div>
+          <div class="set-row">
+            <button class="danger-btn" onclick="clearAll()">🗑️ 全データ初期化（マスタ含む）</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-sec">
+        <div class="sec-lbl">使い方</div>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-info">
+              <b>① GitHub Pages にこのHTMLをアップ</b><br>
+              　HTTPS環境のためカメラが使用可能になります<br><br>
+              <b>② iPhoneのSafariで開く</b><br>
+              　共有 →「ホーム画面に追加」でアプリ化<br><br>
+              <b>③ マスタタブで商品登録（またはCSVインポート）</b><br><br>
+              <b>④ スキャンタブでQRコードを読取</b><br>
+              　同日・同コードは数量が自動累算されます<br><br>
+              <b>⑤ 設定タブにGAS URL を入力</b><br><br>
+              <b>⑥ 履歴タブから一括送信</b><br>
+              　GAS → スプレッドシート → ASTERIA → IBM i
+            </div>
+          </div>
+        </div>
+      </div>
+
+      <div class="settings-sec" style="padding-bottom:20px">
+        <div class="sec-lbl">バージョン情報</div>
+        <div class="set-card">
+          <div class="set-row">
+            <div class="set-info">
+              QR棚卸アプリ v1.0.0<br>
+              ローカルDB: IndexedDB（端末内永続化）<br>
+              QRエンジン: jsQR 1.4.0<br>
+              ライセンス: MIT
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+  </div><!-- /main -->
+
+  <!-- ===================== モーダル（マスタ追加） ===================== -->
+  <div class="modal-bg" id="master-modal" onclick="closeMasterModal(event)">
+    <div class="modal">
+      <div class="modal-handle"></div>
+      <div class="modal-ttl">🗃 商品マスタ 追加 / 編集</div>
+      <div class="mf">
+        <label>商品コード（QRコードの内容）*</label>
+        <input type="text" id="m-code" placeholder="例: BOLT-M6-20" autocapitalize="characters">
+      </div>
+      <div class="mf">
+        <label>品名 *</label>
+        <input type="text" id="m-name" placeholder="例: ボルト M6×20">
+      </div>
+      <div class="mf">
+        <label>サイズ・規格</label>
+        <input type="text" id="m-size" placeholder="例: M6×20">
+      </div>
+      <div class="mf">
+        <label>単位</label>
+        <input type="text" id="m-unit" placeholder="例: 本、個、kg">
+      </div>
+      <div class="modal-btns">
+        <button class="btn-cancel" onclick="closeMasterModal()">キャンセル</button>
+        <button class="btn-ok"     onclick="saveMaster()">保存する</button>
+      </div>
+    </div>
+  </div>
+
+  <!-- Toast / Loading -->
+  <div class="toast"   id="toast"></div>
+  <div class="loading" id="loading">
+    <div class="spinner"></div>
+    <div class="loading-lbl" id="loading-lbl">処理中...</div>
+  </div>
+
+  <!-- ===================== JavaScript ===================== -->
+  <script>
+  'use strict';
+
+  /* =============================================
+     IndexedDB ラッパー
+     ============================================= */
+  const DB_NAME = 'QRInventoryDB';
+  const DB_VER  = 2;
+  let _db = null;
+
+  function openDB() {
+    return new Promise((resolve, reject) => {
+      const req = indexedDB.open(DB_NAME, DB_VER);
+      req.onupgradeneeded = e => {
+        const d = e.target.result;
+        if (!d.objectStoreNames.contains('products')) {
+          d.createObjectStore('products', { keyPath: 'product_code' });
+        }
+        if (!d.objectStoreNames.contains('inventory')) {
+          const s = d.createObjectStore('inventory',
+                      { keyPath: 'id', autoIncrement: true });
+          s.createIndex('by_sent', 'sent_flag', { unique: false });
+        }
+      };
+      req.onsuccess = e => { _db = e.target.result; resolve(_db); };
+      req.onerror   = e => reject(e.target.error);
+    });
+  }
+
+  const tx   = (store, mode) => _db.transaction(store, mode).objectStore(store);
+  const idbG = (store, key) => new Promise((res,rej)=>{ const r=tx(store,'readonly').get(key);     r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+  const idbA = (store)      => new Promise((res,rej)=>{ const r=tx(store,'readonly').getAll();     r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+  const idbP = (store, d)   => new Promise((res,rej)=>{ const r=tx(store,'readwrite').put(d);      r.onsuccess=()=>res(r.result); r.onerror=()=>rej(r.error); });
+  const idbD = (store, key) => new Promise((res,rej)=>{ const r=tx(store,'readwrite').delete(key); r.onsuccess=()=>res();         r.onerror=()=>rej(r.error); });
+  const idbC = (store)      => new Promise((res,rej)=>{ const r=tx(store,'readwrite').clear();     r.onsuccess=()=>res();         r.onerror=()=>rej(r.error); });
+
+  /* =============================================
+     カメラ / QR
+     ============================================= */
+  let camOn   = false;
+  let camStr  = null;
+  let qrTimer = null;
+  let lastCode   = '';
+  let lastCodeAt = 0;
+  const COOLDOWN = 2200;
+
+  async function toggleCamera() {
+    camOn ? stopCamera() : await startCamera();
+  }
+
+  async function startCamera() {
+    if (!navigator.mediaDevices?.getUserMedia) {
+      toast('カメラ非対応 or HTTPS が必要です', 'err'); return;
+    }
+    try {
+      camStr = await navigator.mediaDevices.getUserMedia({
+        video: { facingMode: { ideal: 'environment' }, width: { ideal: 1280 }, height: { ideal: 960 } }
+      });
+      const v = document.getElementById('cam-video');
+      v.srcObject = camStr;
+      await v.play();
+
+      // iOS getBoundingClientRect バグ回避 → JS で高さを算出
+      const setH = () => {
+        const wrap = document.getElementById('cam-wrap');
+        const vw   = v.videoWidth  || 0;
+        const vh   = v.videoHeight || 0;
+        if (vw && vh) {
+          const dispH = Math.min(wrap.offsetWidth * (vh / vw), window.innerHeight * 0.52);
+          v.style.height = dispH + 'px';
+        } else {
+          v.style.height = (wrap.offsetWidth * 0.75) + 'px'; // 4:3フォールバック
+        }
+      };
+      v.addEventListener('loadedmetadata', setH, { once: true });
+      setTimeout(setH, 250); // iOS 初回バグへのフォールバック
+
+      camOn = true;
+      const btn = document.getElementById('cam-btn');
+      btn.textContent = '⏹️ カメラを停止する';
+      btn.classList.add('stop');
+      qrTimer = setInterval(scanFrame, 180);
+    } catch(e) {
+      toast('カメラ起動失敗: ' + (e.message || e.name), 'err');
+    }
+  }
+
+  function stopCamera() {
+    camStr?.getTracks().forEach(t => t.stop());
+    camStr = null;
+    clearInterval(qrTimer); qrTimer = null;
+    camOn = false;
+    const btn = document.getElementById('cam-btn');
+    btn.innerHTML = '📷 カメラを起動する';
+    btn.classList.remove('stop');
+  }
+
+  function scanFrame() {
+    const v = document.getElementById('cam-video');
+    const c = document.getElementById('qr-canvas');
+    if (!v || v.readyState < 2) return;
+    const w = v.videoWidth, h = v.videoHeight;
+    if (!w || !h) return;
+    c.width = w; c.height = h;
+    const ctx = c.getContext('2d');
+    ctx.drawImage(v, 0, 0, w, h);
+    const img = ctx.getImageData(0, 0, w, h);
+    const res = jsQR(img.data, w, h, { inversionAttempts: 'dontInvert' });
+    if (!res?.data) return;
+    const code = res.data.trim();
+    const now  = Date.now();
+    if (code === lastCode && now - lastCodeAt < COOLDOWN) return;
+    lastCode   = code;
+    lastCodeAt = now;
+    onQR(code);
+  }
+
+  /* =============================================
+     QR 検出 → 登録
+     ============================================= */
+  async function onQR(code) {
+    navigator.vibrate?.(70);
+    beep();
+
+    const product = await idbG('products', code);
+    const today   = new Date().toDateString();
+    const all     = await idbA('inventory');
+    const exists  = all.find(i =>
+      i.product_code === code &&
+      new Date(i.scanned_at).toDateString() === today &&
+      i.sent_flag === 0
+    );
+
+    if (exists) {
+      exists.quantity += 1;
+      await idbP('inventory', exists);
+      updateCard(code, exists.quantity);
+    } else {
+      const rec = {
+        product_code: code,
+        product_name: product ? product.product_name : '（マスタ未登録）',
+        unit:         product?.unit || '',
+        quantity:     1,
+        scanned_at:   new Date().toISOString(),
+        sent_flag:    0
+      };
+      await idbP('inventory', rec);
+      addCard(code, product, 1);
+    }
+
+    document.getElementById('scan-empty').style.display = 'none';
+    await updateBadge();
+  }
+
+  /* 結果カード追加 */
+  function addCard(code, product, qty) {
+    const box  = document.getElementById('scan-results');
+    const card = document.createElement('div');
+    card.className = 'result-card';
+    card.id        = 'rc-' + CSS.escape(code);
+    card.innerHTML = cardHTML(code, product, qty);
+    box.prepend(card);
+  }
+
+  /* 既存カード更新 */
+  function updateCard(code, qty) {
+    const card = document.getElementById('rc-' + CSS.escape(code));
+    if (!card) return;
+    card.querySelector('.qty-val').textContent = qty;
+    card.querySelector('.rc-time').textContent = fmtTime(new Date());
+    card.classList.add('flash');
+    setTimeout(() => card.classList.remove('flash'), 700);
+  }
+
+  function cardHTML(code, product, qty) {
+    const name = product ? product.product_name : '⚠️ マスタ未登録';
+    const sub  = product
+      ? [product.size, product.unit].filter(Boolean).join(' / ')
+      : '';
+    const ce = code.replace(/'/g,"\\'");
+    return `
+      <div class="rc-head">
+        <span class="rc-code">${h(code)}</span>
+        <span class="rc-time">${fmtTime(new Date())}</span>
+      </div>
+      <div class="rc-name ${product ? '' : 'unknown'}">
+        ${h(name)}${sub ? ` <span style="color:var(--text-light);font-size:11px">/ ${h(sub)}</span>` : ''}
+      </div>
+      <div class="rc-foot">
+        <span class="qty-label">数量:</span>
+        <div class="qty-wrap">
+          <button class="qty-btn" onclick="adjQty('${ce}',-1)">−</button>
+          <span class="qty-val">${qty}</span>
+          <button class="qty-btn" onclick="adjQty('${ce}', 1)">＋</button>
+        </div>
+        <button class="qty-save" onclick="saveQty('${ce}')">確定</button>
+      </div>`;
+  }
+
+  function adjQty(code, d) {
+    const el = document.querySelector('#rc-' + CSS.escape(code) + ' .qty-val');
+    if (el) el.textContent = Math.max(0, parseInt(el.textContent) + d);
+  }
+
+  async function saveQty(code) {
+    const card = document.getElementById('rc-' + CSS.escape(code));
+    if (!card) return;
+    const qty  = parseInt(card.querySelector('.qty-val').textContent);
+    const today = new Date().toDateString();
+    const all   = await idbA('inventory');
+    const item  = all.find(i =>
+      i.product_code === code &&
+      new Date(i.scanned_at).toDateString() === today &&
+      i.sent_flag === 0
+    );
+    if (!item) return;
+
+    if (qty <= 0) {
+      await idbD('inventory', item.id);
+      card.style.cssText = 'opacity:0;transform:translateY(-6px);transition:all .25s';
+      setTimeout(() => card.remove(), 260);
+      toast('削除しました');
+    } else {
+      item.quantity = qty;
+      await idbP('inventory', item);
+      toast('✅ 保存しました', 'ok');
+      card.style.borderColor = 'var(--accent-green)';
+      setTimeout(() => card.style.borderColor = '', 900);
+    }
+    await updateBadge();
+  }
+
+  /* =============================================
+     履歴ビュー
+     ============================================= */
+  async function renderHistory() {
+    const items  = await idbA('inventory');
+    const sorted = [...items].sort((a,b) => new Date(b.scanned_at)-new Date(a.scanned_at));
+    const pend   = items.filter(i => i.sent_flag === 0);
+    document.getElementById('hist-count').textContent = items.length + '件';
+    document.getElementById('send-btn').disabled = pend.length === 0;
+
+    const list = document.getElementById('hist-list');
+    if (!items.length) {
+      list.innerHTML = `<div class="empty">
+        <div class="empty-ico">📋</div>
+        <div class="empty-txt">スキャンデータがありません</div>
+      </div>`;
+      return;
+    }
+
+    list.innerHTML = sorted.map(i => `
+      <div class="hist-item ${i.sent_flag ? 'sent' : ''}">
+        <div class="hi-ico">${i.sent_flag ? '✅' : '📦'}</div>
+        <div class="hi-info">
+          <div class="hi-code">${h(i.product_code)}</div>
+          <div class="hi-name">${h(i.product_name || '—')}</div>
+        </div>
+        <div class="hi-right">
+          <div class="hi-qty">${i.quantity}${i.unit ? `<span style="font-size:11px;font-weight:400"> ${h(i.unit)}</span>` : ''}</div>
+          <div class="hi-meta">${fmtDT(i.scanned_at)}</div>
+          ${i.sent_flag ? '<span class="sent-tag">送信済</span>' : ''}
+        </div>
+      </div>`
+    ).join('');
+  }
+
+  /* =============================================
+     一括送信（GAS へ POST）
+     ============================================= */
+  async function sendData() {
+    const apiUrl = document.getElementById('s-url').value.trim();
+    if (!apiUrl) {
+      toast('設定タブで送信先URLを入力してください', 'err');
+      switchTab('settings'); return;
+    }
+
+    const all  = await idbA('inventory');
+    const pend = all.filter(i => i.sent_flag === 0);
+    if (!pend.length) { toast('未送信データはありません'); return; }
+
+    showLoading(`送信中… ${pend.length}件`);
+
+    const payload = {
+      action:   'inventory_upload',
+      location: document.getElementById('s-loc').value.trim() || 'UNKNOWN',
+      sent_at:  new Date().toISOString(),
+      count:    pend.length,
+      items:    pend.map(i => ({
+        product_code: i.product_code,
+        product_name: i.product_name,
+        unit:         i.unit || '',
+        quantity:     i.quantity,
+        scanned_at:   i.scanned_at
+      }))
+    };
+
+    try {
+      // GAS Web App は CORS 制約あり → no-cors で送信（成功可否は確認不可）
+      // 独自RESTの場合は mode を削除し response.ok を確認してください
+      await fetch(apiUrl, {
+        method:  'POST',
+        headers: { 'Content-Type': 'text/plain' }, // GAS は text/plain が CORS フリー
+        body:    JSON.stringify(payload),
+        mode:    'no-cors'
+      });
+
+      // no-cors の場合はレスポンス読み取り不可 → 楽観的に成功扱い
+      for (const i of pend) { i.sent_flag = 1; await idbP('inventory', i); }
+      hideLoading();
+      toast(`✅ ${pend.length}件を送信しました！`, 'ok');
+      await renderHistory();
+      await updateBadge();
+    } catch(e) {
+      hideLoading();
+      toast('送信エラー: ' + e.message, 'err');
+    }
+  }
+
+  /* =============================================
+     マスタ管理
+     ============================================= */
+  async function renderMaster() {
+    const prods = await idbA('products');
+    const kw    = (document.getElementById('master-search')?.value || '').toLowerCase();
+    const filt  = prods.filter(p =>
+      !kw || p.product_code.toLowerCase().includes(kw) ||
+             (p.product_name || '').toLowerCase().includes(kw)
+    );
+    const list  = document.getElementById('master-list');
+    if (!filt.length) {
+      list.innerHTML = `<div class="empty">
+        <div class="empty-ico">🗃</div>
+        <div class="empty-txt">${!prods.length
+          ? '商品マスタが空です<br>追加またはCSV・サンプルで登録してください'
+          : '該当なし'}</div>
+      </div>`;
+      return;
+    }
+    list.innerHTML = filt.map(p => `
+      <div class="master-item">
+        <div class="mi-info">
+          <div class="mi-code">${h(p.product_code)}</div>
+          <div class="mi-name">${h(p.product_name || '—')}</div>
+          ${p.size || p.unit ? `<div class="mi-sub">${[p.size,p.unit].filter(Boolean).map(h).join(' / ')}</div>` : ''}
+        </div>
+        <button class="mi-del" onclick="deleteMaster('${p.product_code.replace(/'/g,"\\'")}')">✕</button>
+      </div>`
+    ).join('');
+  }
+
+  function openMasterModal(code='',name='',size='',unit='') {
+    document.getElementById('m-code').value = code;
+    document.getElementById('m-name').value = name;
+    document.getElementById('m-size').value = size;
+    document.getElementById('m-unit').value = unit;
+    document.getElementById('master-modal').classList.add('open');
+    setTimeout(() => document.getElementById(code ? 'm-name' : 'm-code').focus(), 320);
+  }
+
+  function closeMasterModal(e) {
+    if (!e || e.target === document.getElementById('master-modal'))
+      document.getElementById('master-modal').classList.remove('open');
+  }
+
+  async function saveMaster() {
+    const code = document.getElementById('m-code').value.trim();
+    const name = document.getElementById('m-name').value.trim();
+    if (!code || !name) { toast('コードと品名は必須です', 'err'); return; }
+    await idbP('products', {
+      product_code: code, product_name: name,
+      size: document.getElementById('m-size').value.trim(),
+      unit: document.getElementById('m-unit').value.trim(),
+      updated_at: new Date().toISOString()
+    });
+    closeMasterModal();
+    toast('✅ 保存しました', 'ok');
+    await renderMaster();
+  }
+
+  async function deleteMaster(code) {
+    if (!confirm(`「${code}」を削除しますか？`)) return;
+    await idbD('products', code);
+    toast('削除しました');
+    await renderMaster();
+  }
+
+  async function loadSample() {
+    const rows = [
+      { product_code:'BOLT-M6-20',   product_name:'ボルト M6×20',   size:'M6×20',  unit:'本' },
+      { product_code:'BOLT-M8-30',   product_name:'ボルト M8×30',   size:'M8×30',  unit:'本' },
+      { product_code:'NUT-M6',       product_name:'ナット M6',       size:'M6',     unit:'個' },
+      { product_code:'WASH-M6',      product_name:'ワッシャ M6',     size:'M6',     unit:'個' },
+      { product_code:'PIN-D10',      product_name:'スプリングピン',  size:'Φ10',    unit:'本' },
+      { product_code:'BRG-6204',     product_name:'ベアリング 6204', size:'6204',   unit:'個' },
+    ];
+    for (const r of rows) await idbP('products', { ...r, updated_at: new Date().toISOString() });
+    toast('✅ サンプル6件を読み込みました', 'ok');
+    await renderMaster();
+  }
+
+  function importCSV() { document.getElementById('csv-file').click(); }
+
+  async function handleCSV(e) {
+    const file = e.target.files[0]; if (!file) return;
+    e.target.value = '';
+    const text = await file.text();
+    let count = 0;
+    for (const line of text.split(/\r?\n/)) {
+      const c = line.split(',').map(s => s.trim().replace(/^"|"$/g,''));
+      if (c.length < 2 || !c[0] || c[0].toLowerCase() === 'product_code') continue;
+      const [product_code, product_name, size='', unit=''] = c;
+      await idbP('products', { product_code, product_name, size, unit, updated_at: new Date().toISOString() });
+      count++;
+    }
+    toast(`✅ ${count}件インポートしました`, 'ok');
+    await renderMaster();
+  }
+
+  /* リモートマスタ取得（GAS doGet） */
+  async function fetchRemoteMaster() {
+    const url = document.getElementById('s-master-url').value.trim();
+    if (!url) { toast('マスタ取得URLを設定してください', 'err'); return; }
+    showLoading('マスタ取得中…');
+    try {
+      const res = await fetch(url + '?action=get_master');
+      const data = await res.json();
+      // data = [{ product_code, product_name, size, unit }, ...]
+      for (const p of data) {
+        await idbP('products', { ...p, updated_at: new Date().toISOString() });
+      }
+      hideLoading();
+      toast(`✅ ${data.length}件取得しました`, 'ok');
+      await renderMaster();
+    } catch(e) {
+      hideLoading();
+      toast('取得エラー: ' + e.message, 'err');
+    }
+  }
+
+  /* =============================================
+     設定
+     ============================================= */
+  function saveSettings() {
+    localStorage.setItem('qri_cfg', JSON.stringify({
+      url:       document.getElementById('s-url').value,
+      loc:       document.getElementById('s-loc').value,
+      masterUrl: document.getElementById('s-master-url').value
+    }));
+  }
+
+  function loadSettings() {
+    try {
+      const s = JSON.parse(localStorage.getItem('qri_cfg') || '{}');
+      document.getElementById('s-url').value        = s.url       || '';
+      document.getElementById('s-loc').value        = s.loc       || '';
+      document.getElementById('s-master-url').value = s.masterUrl || '';
+    } catch(e) {}
+  }
+
+  async function clearSent() {
+    if (!confirm('送信済みデータを削除しますか？')) return;
+    const all = await idbA('inventory');
+    for (const i of all.filter(i=>i.sent_flag===1)) await idbD('inventory', i.id);
+    toast('送信済みデータを削除しました', 'ok');
+    await updateBadge();
+    await renderHistory();
+  }
+
+  async function clearAll() {
+    if (!confirm('⚠️ 全データ（マスタ含む）を初期化します。\nこの操作は元に戻せません。')) return;
+    await idbC('inventory');
+    await idbC('products');
+    document.getElementById('scan-results').innerHTML =
+      `<div class="empty" id="scan-empty">
+        <div class="empty-ico">🔍</div>
+        <div class="empty-txt">カメラを起動してQRコードを<br>スキャンしてください</div>
+      </div>`;
+    toast('初期化しました');
+    await updateBadge();
+    await renderHistory();
+    await renderMaster();
+  }
+
+  /* =============================================
+     タブ切替
+     ============================================= */
+  function switchTab(name) {
+    ['scan','history','master','settings'].forEach(t => {
+      document.getElementById('tab-'  + t).classList.toggle('active', t === name);
+      document.getElementById('view-' + t).classList.toggle('active', t === name);
+    });
+    if (name !== 'scan' && camOn) stopCamera();
+    if (name === 'history')  renderHistory();
+    if (name === 'master')   renderMaster();
+  }
+
+  /* =============================================
+     UI ユーティリティ
+     ============================================= */
+  async function updateBadge() {
+    const all  = await idbA('inventory');
+    const pend = all.filter(i => i.sent_flag === 0).length;
+    const el   = document.getElementById('pending-badge');
+    el.textContent = `未送信: ${pend}件`;
+    el.classList.toggle('has-pending', pend > 0);
+  }
+
+  let toastTimer;
+  function toast(msg, type='') {
+    const el = document.getElementById('toast');
+    el.textContent = msg;
+    el.className = 'toast show' + (type ? ' ' + type : '');
+    clearTimeout(toastTimer);
+    toastTimer = setTimeout(() => el.classList.remove('show'), 2600);
+  }
+
+  function showLoading(txt='処理中...') {
+    document.getElementById('loading-lbl').textContent = txt;
+    document.getElementById('loading').classList.add('show');
+  }
+
+  function hideLoading() {
+    document.getElementById('loading').classList.remove('show');
+  }
+
+  function fmtTime(d) {
+    return d.toLocaleTimeString('ja-JP',{hour:'2-digit',minute:'2-digit',second:'2-digit'});
+  }
+
+  function fmtDT(iso) {
+    const d = new Date(iso);
+    return `${d.getMonth()+1}/${d.getDate()} ${String(d.getHours()).padStart(2,'0')}:${String(d.getMinutes()).padStart(2,'0')}`;
+  }
+
+  function h(s) {
+    return String(s)
+      .replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;')
+      .replace(/"/g,'&quot;').replace(/'/g,'&#39;');
+  }
+
+  function beep() {
+    try {
+      const ctx = new (window.AudioContext || window.webkitAudioContext)();
+      const osc = ctx.createOscillator();
+      const g   = ctx.createGain();
+      osc.connect(g); g.connect(ctx.destination);
+      osc.type = 'sine'; osc.frequency.value = 900;
+      g.gain.setValueAtTime(0.28, ctx.currentTime);
+      g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
+      osc.start(); osc.stop(ctx.currentTime + 0.15);
+    } catch(e) {}
+  }
+
+  /* =============================================
+     ヘッダー高さ → CSS 変数に反映
+     ============================================= */
+  function syncHeaderH() {
+    const h = document.getElementById('app-hdr').getBoundingClientRect().height;
+    if (h > 0) {
+      document.documentElement.style.setProperty('--hdr', h + 'px');
+      document.getElementById('main').style.paddingTop = h + 'px';
+    }
+  }
+
+  window.addEventListener('resize',           syncHeaderH);
+  window.addEventListener('orientationchange',syncHeaderH);
+
+  /* =============================================
+     起動
+     ============================================= */
+  (async () => {
+    await openDB();
+    loadSettings();
+    syncHeaderH();
+    setTimeout(syncHeaderH, 400); // iOS safe-area 反映待ち
+    await updateBadge();
+    await renderHistory();
+    await renderMaster();
+  })();
+  </script>
+</body>
+</html>
