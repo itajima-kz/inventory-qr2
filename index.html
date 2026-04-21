@@ -358,10 +358,10 @@
     </div>
   </div>
   <nav class="nav">
-    <button class="ntab on" id="tab-scan"     onclick="sw('scan')"><span class="nicon">&#128247;</span>スキャン</button>
-    <button class="ntab"    id="tab-hist"     onclick="sw('hist')"><span class="nicon">&#128203;</span>履歴</button>
-    <button class="ntab"    id="tab-master"   onclick="sw('master')"><span class="nicon">&#128451;</span>マスタ</button>
-    <button class="ntab"    id="tab-settings" onclick="sw('settings')"><span class="nicon">&#9881;</span>設定</button>
+    <button type="button" class="ntab on" id="tab-scan"     onclick="sw('scan')"><span class="nicon">&#128247;</span>スキャン</button>
+    <button type="button" class="ntab"    id="tab-hist"     onclick="sw('hist')"><span class="nicon">&#128203;</span>履歴</button>
+    <button type="button" class="ntab"    id="tab-master"   onclick="sw('master')"><span class="nicon">&#128451;</span>マスタ</button>
+    <button type="button" class="ntab"    id="tab-settings" onclick="sw('settings')"><span class="nicon">&#9881;</span>設定</button>
   </nav>
 </header>
 
@@ -376,7 +376,7 @@
       <div class="clabel">場所 ／ 担当者
         <span class="lock-badge" id="lkbg">&#128274; 保持中</span>
       </div>
-      <button class="clr-btn" onclick="clrOp()">クリア</button>
+      <button type="button" class="clr-btn" onclick="clrOp()">クリア</button>
       <div class="op-row">
         <div class="op-field">
           <label class="fl" for="ds">場所</label>
@@ -397,8 +397,8 @@
     <div class="card card-scan">
       <div class="clabel">スキャン読取</div>
       <div class="mode-tog">
-        <button class="mbtn on qr" id="mqr"  onclick="setMode('qr')">&#128247; QRコード</button>
-        <button class="mbtn ocr"   id="mocr" onclick="setMode('ocr')">&#128269; OCR（図番）</button>
+        <button type="button" class="mbtn on qr" id="mqr"  onclick="setMode('qr')">&#128247; QRコード</button>
+        <button type="button" class="mbtn ocr"   id="mocr" onclick="setMode('ocr')">&#128269; OCR（図番）</button>
       </div>
 
       <!-- ③ カメラエリア（モードで高さが変わる） -->
@@ -419,9 +419,9 @@
       </div>
 
       <!-- Buttons -->
-      <button class="scanbtn qrm" id="sb-start" onclick="startCam()">&#128247; カメラを起動する</button>
-      <button class="scanbtn stop" id="sb-stop"  onclick="stopCam()">&#9209; カメラを停止</button>
-      <button class="scanbtn cap"  id="sb-cap"   onclick="doOCR()">&#128248; OCRキャプチャ</button>
+      <button type="button" class="scanbtn qrm" id="sb-start" onclick="startCam()">&#128247; カメラを起動する</button>
+      <button type="button" class="scanbtn stop" id="sb-stop"  onclick="stopCam()">&#9209; カメラを停止</button>
+      <button type="button" class="scanbtn cap"  id="sb-cap"   onclick="doOCR()">&#128248; OCRキャプチャ</button>
 
       <!-- OCR result -->
       <div class="ocr-box" id="obox">
@@ -430,13 +430,13 @@
           oninput="opiEdit()" onblur="opiBlur()">
         <div class="ocr-hint" id="oph">OCR読み取り後、手修正も可能です</div>
       </div>
-      <button class="scanbtn srch" id="sb-srch" onclick="doOcrSrch()">&#128270; マスタ検索</button>
+      <button type="button" class="scanbtn srch" id="sb-srch" onclick="doOcrSrch()">&#128270; マスタ検索</button>
     </div>
 
     <!-- 登録情報 -->
     <div class="card">
       <div class="clabel">登録情報</div>
-      <button class="clr-btn" onclick="clrInfo()">クリア</button>
+      <button type="button" class="clr-btn" onclick="clrInfo()">クリア</button>
 
       <div class="fw">
         <label class="fl" for="zuno">図番</label>
@@ -444,7 +444,7 @@
           placeholder="QRスキャン後に自動入力 または直接入力"
           oninput="onZunoIn()" onblur="onZunoBlur()">
       </div>
-      <button class="scanbtn msrch" id="sb-msrch" onclick="doManSrch()">&#128270; マスタ検索</button>
+      <button type="button" class="scanbtn msrch" id="sb-msrch" onclick="doManSrch()">&#128270; マスタ検索</button>
 
       <div class="fw">
         <label class="fl" for="hinmei">品名</label>
@@ -474,19 +474,19 @@
           <span class="qty-unit" id="qu">個</span>
         </div>
         <div class="qty-grid">
-          <button class="qbtn dec" onclick="adjQ(-100)">-100</button>
-          <button class="qbtn dec" onclick="adjQ(-10)">-10</button>
-          <button class="qbtn dec" onclick="adjQ(-1)">-1</button>
-          <button class="qbtn inc" onclick="adjQ(1)">+1</button>
-          <button class="qbtn inc" onclick="adjQ(10)">+10</button>
-          <button class="qbtn inc" onclick="adjQ(100)">+100</button>
+          <button type="button" class="qbtn dec" onclick="adjQ(-100)">-100</button>
+          <button type="button" class="qbtn dec" onclick="adjQ(-10)">-10</button>
+          <button type="button" class="qbtn dec" onclick="adjQ(-1)">-1</button>
+          <button type="button" class="qbtn inc" onclick="adjQ(1)">+1</button>
+          <button type="button" class="qbtn inc" onclick="adjQ(10)">+10</button>
+          <button type="button" class="qbtn inc" onclick="adjQ(100)">+100</button>
         </div>
       </div>
     </div>
 
     <div class="btn-row">
-      <button class="btn rst" onclick="resetScan()">&#128260; リセット</button>
-      <button class="btn reg" id="regbtn" onclick="regData()" disabled>&#9989; 登録</button>
+      <button type="button" class="btn rst" onclick="resetScan()">&#128260; リセット</button>
+      <button type="button" class="btn reg" id="regbtn" onclick="regData()" disabled>&#9989; 登録</button>
     </div>
   </div>
 
@@ -496,7 +496,7 @@
       <span class="vhd-ttl">スキャン履歴</span>
       <span class="pill" id="hcnt">0件</span>
     </div>
-    <button class="send-btn" id="sendbtn" onclick="sendData()" disabled>
+    <button type="button" class="send-btn" id="sendbtn" onclick="sendData()" disabled>
       &#128640; 一括送信（未送信分）
     </button>
     <div class="hlist" id="hlist"></div>
@@ -507,7 +507,7 @@
     <div class="m-tb">
       <input type="search" class="srch-i" id="msrchi"
         placeholder="コード・品名で検索…" oninput="rendMaster()">
-      <button class="ref-btn" onclick="reloadMaster()">&#128260; 再読込</button>
+      <button type="button" class="ref-btn" onclick="reloadMaster()">&#128260; 再読込</button>
     </div>
     <div style="padding:0 13px 6px;font-size:11px;color:var(--text-light);" id="mmeta">読込中...</div>
     <div class="m-list" id="mlist"></div>
@@ -519,7 +519,7 @@
       <div class="ss-lbl">マスタデータ</div>
       <div class="s-card">
         <div class="s-row">
-          <button class="ref-btn" style="width:100%" onclick="reloadMaster()">
+          <button type="button" class="ref-btn" style="width:100%" onclick="reloadMaster()">
             &#128260; マスタデータを今すぐ再読込
           </button>
         </div>
@@ -528,8 +528,8 @@
     <div class="ss">
       <div class="ss-lbl">データ管理</div>
       <div class="s-card">
-        <div class="s-row"><button class="d-btn" onclick="clrSent()">&#9989; 送信済み履歴を削除</button></div>
-        <div class="s-row"><button class="d-btn" onclick="clrAll()">&#128465; 全履歴を削除</button></div>
+        <div class="s-row"><button type="button" class="d-btn" onclick="clrSent()">&#9989; 送信済み履歴を削除</button></div>
+        <div class="s-row"><button type="button" class="d-btn" onclick="clrAll()">&#128465; 全履歴を削除</button></div>
       </div>
     </div>
     <div class="ss">
@@ -574,7 +574,7 @@
     <div class="m-ico">&#9989;</div>
     <div class="m-msg" id="mmsg">登録しました！</div>
     <div class="m-sub" id="msub"></div>
-    <button class="m-ok" onclick="closeMod()">OK</button>
+    <button type="button" class="m-ok" onclick="closeMod()">OK</button>
   </div>
 </div>
 <div id="toast"></div>
@@ -586,7 +586,7 @@
    ⑤ GAS URL をコード内に隠蔽（設定UIには表示しない）
    ▼ ここを自分のGAS Web App URLに書き換えてデプロイしてください ▼
    ============================================================ */
-var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwAm7A0_Mf6wKSaahazzSWro9-8boS2U794sRrJroWiYJBgGfRQ_6ao6wKXTB81wWl6/exec';
+var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyfS-JAF1GbGaNjsZEzJ2Qugt3hzU8E2eVJQFhH29edIdZJ4UQH0ac2KiaXvyJG27cA/exec';
 
 /* ============================================================
    定数・グローバル状態
@@ -719,6 +719,8 @@ function updClock() {
    ② iOS: Promise.all は使えるが安全な書き方に
    ============================================================ */
 async function loadAllMaster() {
+  if (_loadingMaster) return;
+  _loadingMaster = true;
   showLoad('マスタデータ読込中…');
   try {
     var results = await Promise.all([
@@ -745,22 +747,30 @@ async function loadAllMaster() {
       }
     }
 
+    _loadingMaster = false;
     hideLoad();
     toast('マスタ ' + masterData.length + '件 読込完了', 'ok');
     var mmeta = document.getElementById('mmeta');
     if (mmeta) mmeta.textContent = masterData.length + '件  / 最終更新: ' + new Date().toLocaleTimeString('ja-JP');
     rendMaster();
   } catch(e) {
+    _loadingMaster = false;
     hideLoad();
     toast('マスタ読込失敗: ' + e.message, 'err');
     var mmeta2 = document.getElementById('mmeta');
     if (mmeta2) mmeta2.textContent = 'マスタ読込失敗: ' + e.message;
   }
-  restoreOp();
+  /* restoreOp() は init() のみで呼ぶ。
+     ここで呼ぶと reloadMaster() 後のタブ状態がおかしくなる場合がある */
 }
 
+var _loadingMaster = false;  /* 二重ロード防止フラグ */
+
 async function reloadMaster() {
+  if (_loadingMaster) return;
   await loadAllMaster();
+  /* ① ロード完了後はマスタタブを明示的に表示 */
+  sw('master');
 }
 
 /* ============================================================
@@ -986,6 +996,27 @@ async function doOCR() {
     hideLoad();
     stopCam();
     document.getElementById('ocrg').classList.remove('scanning');
+
+    /* ② エラー応答チェック（GAS権限エラーなど） */
+    if (res.error) {
+      toast('OCRエラー: ' + res.error, 'err');
+      ocrBusy = false;
+      return;
+    }
+
+    /* rawTextがGASのエラー文字列の場合もトーストで表示 */
+    var rawT = (res.rawText || '').trim();
+    var isErrText = rawT.indexOf('通信エラー') >= 0
+                 || rawT.indexOf('VISION_API') >= 0
+                 || rawT.indexOf('URLFETCHAPP') >= 0
+                 || rawT.indexOf('権限がありません') >= 0
+                 || rawT.indexOf('KEY未設定') >= 0;
+    if (isErrText) {
+      toast('OCRエラー: ' + rawT, 'err');
+      ocrBusy = false;
+      return;
+    }
+
     var box = document.getElementById('obox');
     var inp = document.getElementById('opi');
     box.classList.add('on');
@@ -994,8 +1025,8 @@ async function doOCR() {
       document.getElementById('oph').textContent = '修正が必要な場合は直接編集し、マスタ検索を押してください';
       document.getElementById('sb-srch').style.display = 'flex';
       toast('図番を読み取りました', 'ok');
-    } else if (res.rawText && res.rawText.trim()) {
-      var rv = res.rawText.replace(/\r?\n/g,' ').trim().substring(0,40).toUpperCase();
+    } else if (rawT) {
+      var rv = rawT.replace(/\r?\n/g,' ').substring(0,40).toUpperCase();
       inp.value = rv; inp.className = 'editing';
       document.getElementById('oph').textContent = '図番部分のみ残して修正し、マスタ検索してください';
       document.getElementById('sb-srch').style.display = 'flex';
