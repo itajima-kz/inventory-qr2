@@ -7,9 +7,10 @@
   <meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
   <meta name="apple-mobile-web-app-title" content="棚卸アプリ">
   <meta name="theme-color" content="#1a3fa0">
-  <title>QR/OCR棚卸アプリ</title>
+  <title>DX棚卸アプリ</title>
   <link href="https://fonts.googleapis.com/css2?family=Zen+Maru+Gothic:wght@400;500;700&display=swap" rel="stylesheet">
   <script src="https://cdn.jsdelivr.net/npm/jsqr@1.4.0/dist/jsQR.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/@zxing/library@0.19.1/umd/index.min.js"></script>
   <style>
   :root {
     --primary:#1a3fa0; --primary-dark:#0d2870;
@@ -133,6 +134,8 @@
   .mbtn{flex:1;padding:8px 6px;border-radius:var(--radius-xs);font-size:13px;font-weight:700;
     font-family:var(--font);cursor:pointer;border:2px solid var(--blue-lt);
     background:var(--surface2);color:var(--text-light);transition:all .15s;-webkit-appearance:none;}
+  .mbtn.on.jan{background:linear-gradient(135deg,#0f9e6e,#076e49);
+    border-color:#0f9e6e;color:#fff;box-shadow:0 2px 8px rgba(7,110,73,.35);}
   .mbtn.on.qr{background:linear-gradient(135deg,var(--blue),var(--primary));
     border-color:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(46,107,224,.35);}
   .mbtn.on.ocr{background:linear-gradient(135deg,var(--purple),#5a1fd1);
@@ -171,6 +174,8 @@
     display:flex;align-items:center;justify-content:center;gap:6px;
     color:#fff;transition:transform .12s;margin-bottom:5px;}
   .scanbtn:active{transform:scale(.96);}
+  .scanbtn.janm{background:linear-gradient(135deg,#0f9e6e,#076e49);
+    box-shadow:0 3px 12px rgba(7,110,73,.38);}
   .scanbtn.qrm{background:linear-gradient(135deg,var(--blue),var(--primary));
     box-shadow:0 3px 12px rgba(20,80,200,.38);}
   .scanbtn.ocrm{background:linear-gradient(135deg,var(--purple),#5a1fd1);
@@ -329,7 +334,7 @@
 <!-- Header -->
 <header class="hdr" id="hdr">
   <div class="hdr-in">
-    <div class="hdr-title">&#128230; QR/OCR棚卸アプリ</div>
+    <div class="hdr-title">&#128230; DX棚卸アプリ</div>
     <div class="hdr-right">
       <span class="pbadge" id="pb">未送信:0件</span>
       <span class="hdate" id="hd">--:--:--</span>
@@ -370,9 +375,10 @@
     </div>
 
     <div class="card card-scan">
-      <div class="clabel">スキャン読取</div>
+      <div class="clabel">スキャン読取（JAN / QR / OCR）</div>
       <div class="mode-tog">
-        <button type="button" class="mbtn on qr" id="mqr"  onclick="setMode('qr')">&#128247; QRコード</button>
+        <button type="button" class="mbtn on jan" id="mjan" onclick="setMode('jan')">&#127991; JAN</button>
+        <button type="button" class="mbtn qr"    id="mqr"  onclick="setMode('qr')">&#128247; QR</button>
         <button type="button" class="mbtn ocr"   id="mocr" onclick="setMode('ocr')">&#128269; OCR（図番）</button>
       </div>
       <div class="cam-area" id="cama">
@@ -388,7 +394,7 @@
         <div class="cam-ph-ico" id="ph-ico">&#128247;</div>
         <div class="cam-ph-txt" id="ph-txt">カメラを起動してQRコードをスキャン<br>または下の手入力欄に直接入力</div>
       </div>
-      <button type="button" class="scanbtn qrm" id="sb-start" onclick="startCam()">&#128247; カメラを起動する</button>
+      <button type="button" class="scanbtn janm" id="sb-start" onclick="startCam()">&#127991; JANスキャン開始</button>
       <button type="button" class="scanbtn stop" id="sb-stop"  onclick="stopCam()">&#9209; カメラを停止</button>
       <button type="button" class="scanbtn cap"  id="sb-cap"   onclick="doOCR()">&#128248; OCRキャプチャ</button>
       <div class="ocr-box" id="obox">
@@ -520,7 +526,7 @@
       <div class="ss-lbl">バージョン</div>
       <div class="s-card">
         <div class="s-row">
-          <div class="s-info">QR/OCR棚卸アプリ v2.2.0<br>
+          <div class="s-info">DX棚卸アプリ v2.3.0<br>
           ローカルDB: IndexedDB / QRエンジン: jsQR 1.4.0<br>
           OCR: Google Cloud Vision API (GAS経由)</div>
         </div>
@@ -573,10 +579,12 @@ var curUnit    = '個';
 var curFromMst = false;
 var curScanSrc = '';
 
-var mode       = 'qr';
+var mode       = 'jan';
 var camOn      = false;
 var camStr_    = null;
 var qrTimer    = null;
+var janTimer   = null;
+var janReader  = null;
 var ocrBusy    = false;
 var lastCode   = '';
 var lastCodeAt = 0;
@@ -588,6 +596,33 @@ var COOLDOWN   = 2200;
    - マスタ検索・登録の内部処理に使用
    - 表示（ze.value）には元のコードをそのまま使う
    ============================================================ */
+/* ============================================================
+   ② 末尾ゼロ・空白除去（JAN / QR 共通）
+   右から1文字ずつ検査し「0」または「空白」なら除去
+   例: "H52921 000000" → "H52921"
+   ============================================================ */
+/* ============================================================
+   ② 末尾ゼロ・空白除去（JAN / QR 共通）
+   右から1文字ずつ「0」または空白を検査して除去する。
+   先頭から7文字目を処理した時点で停止（それより左は変更しない）。
+
+   例① H52921 000000  → H52921   （7文字目=spaceまで除去して停止）
+   例② H52920 000000  → H52920   （同上。6文字目の'0'は保護）
+   例③ 1234567000000  → 1234567  （7文字目='7'で自然停止）
+   例④ H5292101 000000 → H5292101 （8文字目='1'で自然停止）
+   例⑦ 6440770100000  → 64407701 （8文字目='1'で自然停止）
+   ============================================================ */
+function stripTrailingZeroSpace(code) {
+  var s = code;
+  while (s.length >= 7) {
+    var last = s[s.length - 1];
+    if (last !== '0' && last !== ' ') break; /* 0・空白以外→停止 */
+    s = s.slice(0, -1);                       /* 末尾1文字除去     */
+    if (s.length < 7) break;                  /* 7文字目を除去済み→停止 */
+  }
+  return s;
+}
+
 function stripSymbols(code) {
   return String(code).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
 }
@@ -739,6 +774,8 @@ async function init() {
   await openDB();
   syncHdr(); setTimeout(syncHdr, 400);
   setInterval(updClock, 1000); updClock();
+  setMode('jan');    /* ③ 初期モードをJANに設定 */
+  initJanReader();   /* ② ZXingリーダー初期化 */
   await loadAllMaster();
   restoreOp();
   await rendHist();
@@ -867,37 +904,49 @@ function updLock() {
 }
 
 /* ============================================================
-   モード切替（QR / OCR）
+   ③ モード切替（JAN / QR / OCR）
    ============================================================ */
 function setMode(m) {
   mode = m;
+  document.getElementById('mjan').className = 'mbtn' + (m === 'jan' ? ' on jan' : '');
   document.getElementById('mqr').className  = 'mbtn' + (m === 'qr'  ? ' on qr'  : '');
   document.getElementById('mocr').className = 'mbtn' + (m === 'ocr' ? ' on ocr' : '');
   var sb = document.getElementById('sb-start');
-  sb.className = 'scanbtn ' + (m === 'qr' ? 'qrm' : 'ocrm');
-  sb.innerHTML = m === 'qr' ? '&#128247; カメラを起動する' : '&#128269; OCRカメラを起動する';
-  document.getElementById('ph-ico').textContent = m === 'qr' ? '📷' : '🔍';
-  document.getElementById('ph-txt').innerHTML   = m === 'qr'
+  if (m === 'jan') {
+    sb.className = 'scanbtn janm';
+    sb.innerHTML = '&#127991; JANスキャン開始';
+  } else if (m === 'qr') {
+    sb.className = 'scanbtn qrm';
+    sb.innerHTML = '&#128247; カメラを起動する';
+  } else {
+    sb.className = 'scanbtn ocrm';
+    sb.innerHTML = '&#128269; OCRカメラを起動する';
+  }
+  document.getElementById('ph-ico').textContent = m === 'ocr' ? '🔍' : (m === 'jan' ? '🏷️' : '📷');
+  document.getElementById('ph-txt').innerHTML = m === 'jan'
+    ? 'カメラを起動してJANバーコードをスキャン<br>または下の手入力欄に直接入力'
+    : m === 'qr'
     ? 'カメラを起動してQRコードをスキャン<br>または下の手入力欄に直接入力'
     : 'カメラを起動してOCRで図番を読取<br>または下の手入力欄に直接入力';
   if (camOn) {
     updGuide();
     if (_setCamH) _setCamH();
     document.getElementById('sb-cap').style.display = m === 'ocr' ? 'flex' : 'none';
-    if (m === 'qr' && !qrTimer) {
-      qrTimer = setInterval(scanQR, 180);
-    } else if (m === 'ocr' && qrTimer) {
-      clearInterval(qrTimer); qrTimer = null;
-    }
+    /* タイマーをすべてクリアしてから現モードのタイマーを起動 */
+    clearInterval(qrTimer);  qrTimer  = null;
+    clearInterval(janTimer); janTimer = null;
+    if (m === 'qr')  qrTimer  = setInterval(scanQR,  180);
+    if (m === 'jan') janTimer = setInterval(scanJAN, 180);
   }
 }
 
 function updGuide() {
-  var isQR = mode === 'qr';
+  /* JAN・QRはコーナー＋スキャンライン表示、OCRはOCRガイド表示 */
+  var isBarcode = (mode === 'qr' || mode === 'jan');
   var corners = document.querySelectorAll('.qrc');
-  for (var i = 0; i < corners.length; i++) corners[i].style.display = isQR ? '' : 'none';
-  document.getElementById('sline').style.display = isQR ? '' : 'none';
-  document.getElementById('ocrg').style.display  = isQR ? 'none' : 'block';
+  for (var i = 0; i < corners.length; i++) corners[i].style.display = isBarcode ? '' : 'none';
+  document.getElementById('sline').style.display = isBarcode ? '' : 'none';
+  document.getElementById('ocrg').style.display  = isBarcode ? 'none' : 'block';
 }
 
 /* ============================================================
@@ -945,7 +994,8 @@ async function startCam() {
     _setCamH = setH;
     v.addEventListener('loadedmetadata', setH, { once: true });
     setTimeout(setH, 250);
-    if (mode === 'qr') qrTimer = setInterval(scanQR, 180);
+    if (mode === 'qr')  qrTimer  = setInterval(scanQR,  180);
+    if (mode === 'jan') janTimer = setInterval(scanJAN, 180);
   } catch(err) {
     var msg = err.name === 'NotAllowedError'   ? 'カメラのアクセスが拒否されました'
             : err.name === 'NotFoundError'     ? 'カメラが見つかりません'
@@ -956,7 +1006,8 @@ async function startCam() {
 }
 
 function stopCam() {
-  clearInterval(qrTimer); qrTimer = null;
+  clearInterval(qrTimer);  qrTimer  = null;
+  clearInterval(janTimer); janTimer = null;
   if (camStr_) { camStr_.getTracks().forEach(function(t) { t.stop(); }); camStr_ = null; }
   camOn = false; ocrBusy = false; _setCamH = null;
   document.getElementById('cama').style.display  = 'none';
@@ -983,6 +1034,8 @@ function scanQR() {
   var res = jsQR(img.data, w, hh, { inversionAttempts: 'dontInvert' });
   if (!res || !res.data) return;
   var code = res.data.trim();
+  code = stripTrailingZeroSpace(code); /* ② 末尾0・空白除去 */
+  if (!code) return;
   var now  = Date.now();
   if (code === lastCode && now - lastCodeAt < COOLDOWN) return;
   lastCode = code; lastCodeAt = now;
@@ -992,6 +1045,40 @@ function scanQR() {
   beep();
   stopCam();
   applyCode(code, 'qr');
+}
+
+/* ============================================================
+   ② JANスキャン（ZXing: EAN-13/8, Code128, Code39, ITF など）
+   処理フローはQRと同じ（読取→stripTrailingZeroSpace→applyCode）
+   ============================================================ */
+function scanJAN() {
+  if (!janReader) return;  /* ZXing未ロード時はスキップ */
+  var v = document.getElementById('cv');
+  var c = document.getElementById('qc');
+  if (!v || v.readyState < 2) return;
+  var w = v.videoWidth, hh = v.videoHeight;
+  if (!w || !hh) return;
+  c.width = w; c.height = hh;
+  c.getContext('2d').drawImage(v, 0, 0, w, hh);
+  var code = null;
+  try {
+    var lum    = new ZXing.HTMLCanvasElementLuminanceSource(c);
+    var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
+    code = janReader.decode(bitmap).getText();
+  } catch(e) { return; } /* NotFoundException は正常 */
+  if (!code) return;
+  code = code.trim();
+  code = stripTrailingZeroSpace(code); /* ② 末尾0・空白除去 */
+  if (!code) return;
+  var now = Date.now();
+  if (code === lastCode && now - lastCodeAt < COOLDOWN) return;
+  lastCode = code; lastCodeAt = now;
+  var fl = document.getElementById('flash');
+  fl.style.opacity = '1';
+  setTimeout(function() { fl.style.opacity = '0'; }, 160);
+  beep();
+  stopCam();
+  applyCode(code, 'jan');
 }
 
 /* ============================================================
@@ -1186,7 +1273,7 @@ function applyCode(code, src) {
   }
 
   /* QR読取のみ readonly、OCR/手入力は編集可能 */
-  if (src === 'qr') {
+  if (src === 'qr' || src === 'jan') {  /* ② JAN読取もQRと同じ処理 */
     ze.setAttribute('readonly', true);
     he.setAttribute('readonly', true);
     document.getElementById('sei').setAttribute('readonly', true);
@@ -1543,6 +1630,31 @@ function beep() {
     g.gain.exponentialRampToValueAtTime(0.001, ctx.currentTime + 0.14);
     osc.start(); osc.stop(ctx.currentTime + 0.15);
   } catch(e2) {}
+}
+
+/* ============================================================
+   ② ZXing JANリーダー初期化
+   対応フォーマット: EAN-13, EAN-8, Code128, Code39, ITF, UPC-A/E
+   ============================================================ */
+function initJanReader() {
+  try {
+    if (typeof ZXing === 'undefined') {
+      setTimeout(initJanReader, 500); /* ライブラリロード待ち */
+      return;
+    }
+    var hints = new Map();
+    hints.set(ZXing.DecodeHintType.POSSIBLE_FORMATS, [
+      ZXing.BarcodeFormat.EAN_13,
+      ZXing.BarcodeFormat.EAN_8,
+      ZXing.BarcodeFormat.CODE_128,
+      ZXing.BarcodeFormat.CODE_39,
+      ZXing.BarcodeFormat.ITF,
+      ZXing.BarcodeFormat.UPC_A,
+      ZXing.BarcodeFormat.UPC_E
+    ]);
+    janReader = new ZXing.MultiFormatReader();
+    janReader.setHints(hints);
+  } catch(e) { console.warn('ZXing初期化失敗:', e); }
 }
 
 /* 起動 */
