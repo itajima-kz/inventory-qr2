@@ -39,7 +39,7 @@
     padding-top:max(env(safe-area-inset-top),38px);
     box-shadow:0 3px 20px rgba(13,40,112,0.45);}
   .hdr-in{display:flex;align-items:center;justify-content:space-between;padding:7px 14px;}
-  .hdr-title{color:#fff;font-size:15px;font-weight:700;letter-spacing:.05em;}
+  .hdr-title{color:#fff;font-size:20px;font-weight:700;letter-spacing:.05em;}
   .hdr-right{display:flex;flex-direction:column;align-items:flex-end;gap:2px;}
   .pbadge{font-size:10px;font-weight:700;padding:3px 9px;border-radius:20px;
     background:rgba(255,255,255,.22);color:#fff;transition:background .3s;}
@@ -72,7 +72,7 @@
     }
     /* app-wrap: 中央寄せカード */
     .app-wrap{
-      max-width:520px;
+      max-width:1040px;
       margin:0 auto;
       height:auto;
       min-height:calc(100vh - 76px);
@@ -82,6 +82,8 @@
       background:var(--bg);
       display:flex;flex-direction:column;
     }
+    /* PC: タイトル文字を大きく */
+    .hdr-title{font-size:26px;}
     /* PC: ヘッダーはstickyで上部固定（safe-area不要） */
     .hdr{position:sticky;top:0;padding-top:0;}
     /* PC: mainは通常フロー（bodyがスクロール） */
@@ -1490,17 +1492,14 @@ function fillSel(id, items) {
 }
 
 function syncHdr() {
-  /* PC（560px以上）: sticky ヘッダーのためpaddingTop不要 */
-  if (window.innerWidth >= 560) {
-    document.getElementById('main').style.paddingTop = '';
-    return;
-  }
+  /* ヘッダーは position:sticky のためpaddingTop不要
+     --hdr CSS変数だけ更新（他のスタイル参照用） */
   var hdr = document.getElementById('hdr');
   var hh  = hdr.getBoundingClientRect().height;
   if (hh > 0) {
     document.documentElement.style.setProperty('--hdr', hh + 'px');
-    document.getElementById('main').style.paddingTop = hh + 'px';
   }
+  document.getElementById('main').style.paddingTop = '';
 }
 window.addEventListener('resize', syncHdr);
 window.addEventListener('orientationchange', syncHdr);
