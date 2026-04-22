@@ -26,11 +26,15 @@
     --hdr:62px;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
+
+  /* ===== モバイル基本（iPhone優先） ===== */
   html{height:100%;height:-webkit-fill-available;}
   body{font-family:var(--font);background:var(--bg);color:var(--text);
     height:100%;height:-webkit-fill-available;overflow:hidden;
     display:flex;flex-direction:column;}
-  .hdr{position:fixed;top:0;left:0;right:0;z-index:100;
+  /* モバイル: app-wrap = body全体を覆うflex列 */
+  .app-wrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
+  .hdr{position:sticky;top:0;z-index:100;
     background:linear-gradient(135deg,var(--primary),var(--primary-dark));
     padding-top:max(env(safe-area-inset-top),38px);
     box-shadow:0 3px 20px rgba(13,40,112,0.45);}
@@ -52,10 +56,37 @@
   .nicon{font-size:18px;line-height:1.2;}
   .main{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
     -webkit-overflow-scrolling:touch;
-    padding-top:var(--hdr);
     padding-bottom:max(env(safe-area-inset-bottom),16px);}
   .view{display:none;}
   .view.on{display:block;}
+
+  /* ===== PC レイアウト（560px以上） ===== */
+  @media (min-width:560px){
+    /* body・html: 通常ドキュメントフローに戻す */
+    html{height:auto;overflow-y:auto;}
+    body{
+      height:auto;overflow:visible;
+      background:linear-gradient(145deg,#dce6f7 0%,#c6d5ef 50%,#d4e0f5 100%);
+      min-height:100vh;
+      padding:28px 16px 48px;
+    }
+    /* app-wrap: 中央寄せカード */
+    .app-wrap{
+      max-width:520px;
+      margin:0 auto;
+      height:auto;
+      min-height:calc(100vh - 76px);
+      border-radius:20px;
+      overflow:hidden;
+      box-shadow:0 12px 48px rgba(20,50,120,0.22),0 2px 8px rgba(20,50,120,0.10);
+      background:var(--bg);
+      display:flex;flex-direction:column;
+    }
+    /* PC: ヘッダーはstickyで上部固定（safe-area不要） */
+    .hdr{position:sticky;top:0;padding-top:0;}
+    /* PC: mainは通常フロー（bodyがスクロール） */
+    .main{flex:1;overflow-y:visible;overflow-x:visible;padding-bottom:24px;}
+  }
   @keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
   .card{background:var(--surface);border-radius:var(--radius);
     box-shadow:var(--shadow);padding:11px 12px 10px;margin:8px 8px 0;
@@ -291,6 +322,7 @@
   </style>
 </head>
 <body>
+<div class="app-wrap">
 
 <!-- Header -->
 <header class="hdr" id="hdr">
@@ -495,6 +527,7 @@
   </div>
 
 </div><!-- /main -->
+</div><!-- /app-wrap -->
 
 <!-- Modal -->
 <div id="mover">
@@ -514,7 +547,7 @@
 /* ============================================================
    GAS URL（設定UIには表示しない）
    ============================================================ */
-var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyagsCZYqmDFTZZcA-k2EkGfWkBBovqQPlYbWO3CgCsz2J7VcDJuoF1TvGcOYod-H9z/exec';
+var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyfS-JAF1GbGaNjsZEzJ2Qugt3hzU8E2eVJQFhH29edIdZJ4UQH0ac2KiaXvyJG27cA/exec';
 
 /* ============================================================
    定数・グローバル状態
@@ -1457,6 +1490,11 @@ function fillSel(id, items) {
 }
 
 function syncHdr() {
+  /* PC（560px以上）: sticky ヘッダーのためpaddingTop不要 */
+  if (window.innerWidth >= 560) {
+    document.getElementById('main').style.paddingTop = '';
+    return;
+  }
   var hdr = document.getElementById('hdr');
   var hh  = hdr.getBoundingClientRect().height;
   if (hh > 0) {
