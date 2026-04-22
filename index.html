@@ -26,21 +26,10 @@
     --hdr:62px;
   }
   *,*::before,*::after{box-sizing:border-box;margin:0;padding:0;-webkit-tap-highlight-color:transparent;}
-
-  /* ① スクロール修正: html/bodyの高さ固定 + mainにmin-height:0 */
-  html{
-    height:100%;
-    height:-webkit-fill-available;
-  }
-  body{
-    font-family:var(--font);background:var(--bg);color:var(--text);
-    height:100%;
-    height:-webkit-fill-available;
-    overflow:hidden;
-    display:flex;flex-direction:column;
-  }
-
-  /* ---- Header ---- */
+  html{height:100%;height:-webkit-fill-available;}
+  body{font-family:var(--font);background:var(--bg);color:var(--text);
+    height:100%;height:-webkit-fill-available;overflow:hidden;
+    display:flex;flex-direction:column;}
   .hdr{position:fixed;top:0;left:0;right:0;z-index:100;
     background:linear-gradient(135deg,var(--primary),var(--primary-dark));
     padding-top:max(env(safe-area-inset-top),38px);
@@ -61,22 +50,13 @@
   .ntab.on::after{content:'';position:absolute;bottom:0;left:20%;right:20%;
     height:2px;background:var(--cyan);border-radius:2px 2px 0 0;}
   .nicon{font-size:18px;line-height:1.2;}
-
-  /* ① スクロール修正: mainにmin-height:0が必須（iOSフレックスボックス対策） */
-  .main{
-    flex:1;
-    min-height:0;           /* ★ iOSフレックスboxスクロールの核心 */
-    overflow-y:auto;
-    overflow-x:hidden;
+  .main{flex:1;min-height:0;overflow-y:auto;overflow-x:hidden;
     -webkit-overflow-scrolling:touch;
     padding-top:var(--hdr);
-    padding-bottom:max(env(safe-area-inset-bottom),16px);
-  }
+    padding-bottom:max(env(safe-area-inset-bottom),16px);}
   .view{display:none;}
   .view.on{display:block;}
   @keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
-
-  /* ---- Cards ---- */
   .card{background:var(--surface);border-radius:var(--radius);
     box-shadow:var(--shadow);padding:11px 12px 10px;margin:8px 8px 0;
     border:2px solid var(--blue-lt);animation:fadeUp .28s ease both;position:relative;}
@@ -86,8 +66,6 @@
     background:linear-gradient(180deg,var(--blue),var(--cyan));border-radius:3px;flex-shrink:0;}
   .card-op{background:linear-gradient(145deg,#eef3fc,#dde8fa);border-color:var(--blue-mid);}
   .card-scan{background:linear-gradient(145deg,#f4f7fd,#e4ecfc);border-color:var(--blue-mid);}
-
-  /* ---- Operator ---- */
   .op-row{display:flex;gap:8px;}
   .op-field{flex:1;}
   .clr-btn{position:absolute;top:10px;right:12px;font-family:var(--font);
@@ -99,8 +77,6 @@
   .lock-badge{display:none;align-items:center;gap:4px;font-size:11px;font-weight:700;
     color:#1a6e1a;background:#e0f5e0;border:1.5px solid #5cb85c;
     border-radius:20px;padding:2px 8px;margin-left:6px;}
-
-  /* ---- Fields ---- */
   .fl{font-size:11px;color:var(--blue-dk);font-weight:700;letter-spacing:.04em;
     margin-bottom:4px;display:block;}
   .fl .sub{font-size:10px;font-weight:500;color:var(--text-mid);margin-left:4px;}
@@ -120,8 +96,6 @@
     padding-right:30px;cursor:pointer;}
   select.fi:focus{border-color:var(--blue);box-shadow:0 0 0 3px rgba(46,107,224,.14);}
   #sei{letter-spacing:3px;font-family:monospace;font-size:17px;font-weight:700;}
-
-  /* ---- Mode toggle ---- */
   .mode-tog{display:flex;gap:6px;margin-bottom:8px;}
   .mbtn{flex:1;padding:8px 6px;border-radius:var(--radius-xs);font-size:13px;font-weight:700;
     font-family:var(--font);cursor:pointer;border:2px solid var(--blue-lt);
@@ -130,44 +104,34 @@
     border-color:var(--blue);color:#fff;box-shadow:0 2px 8px rgba(46,107,224,.35);}
   .mbtn.on.ocr{background:linear-gradient(135deg,var(--purple),#5a1fd1);
     border-color:var(--purple);color:#fff;box-shadow:0 2px 8px rgba(123,63,242,.35);}
-
-  /* ---- Camera area ---- */
   .cam-area{position:relative;width:100%;background:#000;
     border-radius:var(--radius-sm);overflow:hidden;margin-bottom:7px;display:none;}
   #cv{width:100%;display:block;object-fit:cover;}
   #qc{display:none;}
-  /* QR corners */
   .qrc{position:absolute;width:22px;height:22px;
     border-color:var(--cyan);border-style:solid;border-width:0;z-index:5;}
   .qrc.tl{top:7px;left:7px;border-top-width:3px;border-left-width:3px;border-radius:5px 0 0 0;}
   .qrc.tr{top:7px;right:7px;border-top-width:3px;border-right-width:3px;border-radius:0 5px 0 0;}
   .qrc.bl{bottom:7px;left:7px;border-bottom-width:3px;border-left-width:3px;border-radius:0 0 0 5px;}
   .qrc.br{bottom:7px;right:7px;border-bottom-width:3px;border-right-width:3px;border-radius:0 0 5px 0;}
-  /* Scan line */
   #sline{position:absolute;left:10px;right:10px;height:2px;
     background:linear-gradient(90deg,transparent,var(--cyan),transparent);
     animation:scanmv 2s ease-in-out infinite;pointer-events:none;z-index:4;}
   @keyframes scanmv{0%{top:10px;opacity:.3}20%{opacity:1}80%{opacity:1}100%{top:calc(100% - 10px);opacity:.3}}
-  /* OCR guide - ③ 平べったいガイド枠 */
   #ocrg{display:none;position:absolute;left:8%;width:84%;top:12%;height:76%;
     border:2px solid #a855f7;border-radius:6px;
     box-shadow:0 0 0 2000px rgba(0,0,0,.38);pointer-events:none;z-index:4;}
   #ocrg.scanning::after{content:'';position:absolute;left:0;right:0;height:2px;
     background:#a855f7;animation:oscn 1.2s ease-in-out infinite;}
   @keyframes oscn{0%{top:0;opacity:1}90%{top:calc(100% - 2px);opacity:1}100%{top:calc(100% - 2px);opacity:0}}
-  /* Flash */
   #flash{position:absolute;inset:0;background:rgba(46,107,224,.5);
     border-radius:var(--radius-sm);opacity:0;pointer-events:none;
     transition:opacity .08s;z-index:3;}
-
-  /* Camera placeholder */
   .cam-ph{width:100%;background:#1a1a2e;border-radius:var(--radius-sm);
     display:flex;flex-direction:column;align-items:center;justify-content:center;
     padding:26px 16px;margin-bottom:7px;gap:8px;}
   .cam-ph-ico{font-size:36px;opacity:.5;}
   .cam-ph-txt{font-size:11px;color:rgba(255,255,255,.5);text-align:center;}
-
-  /* Scan buttons */
   .scanbtn{width:100%;padding:12px;border:none;border-radius:var(--radius-sm);
     font-size:14px;font-weight:700;font-family:var(--font);
     cursor:pointer;-webkit-appearance:none;
@@ -186,8 +150,6 @@
     box-shadow:0 3px 12px rgba(7,110,73,.38);display:none;margin-top:4px;}
   .scanbtn.msrch{background:linear-gradient(135deg,var(--green),#076e49);
     box-shadow:0 2px 9px rgba(7,110,73,.38);display:none;margin:4px 0 8px;}
-
-  /* OCR result */
   .ocr-box{display:none;background:#1a1a2e;border-radius:var(--radius-xs);padding:8px;margin-bottom:7px;}
   .ocr-box.on{display:block;}
   .ocr-lbl{font-size:10px;color:#888;margin-bottom:3px;}
@@ -198,8 +160,6 @@
   #opi.notfound{color:#ff5555;}
   #opi.editing{border-color:#ffaa00;color:#ffaa00;}
   .ocr-hint{font-size:10px;color:#888;text-align:center;margin-top:3px;}
-
-  /* ---- Quantity ---- */
   .qty-sec{margin-top:8px;}
   .qty-lbl{font-size:11px;color:var(--blue-dk);font-weight:700;letter-spacing:.04em;margin-bottom:6px;}
   .qty-disp{display:flex;align-items:baseline;justify-content:center;gap:6px;
@@ -216,8 +176,6 @@
   .qbtn:active{transform:scale(.92);}
   .qbtn.dec{background:linear-gradient(135deg,#c03030,#8e1a10);box-shadow:0 2px 7px rgba(180,40,30,.30);}
   .qbtn.inc{background:linear-gradient(135deg,var(--green),#076e49);box-shadow:0 2px 7px rgba(7,110,73,.30);}
-
-  /* ---- Action buttons ---- */
   .btn-row{display:flex;gap:8px;margin:8px 8px 0;padding-bottom:8px;}
   .btn{flex:1;font-family:var(--font);font-size:16px;font-weight:700;
     letter-spacing:.04em;border:none;border-radius:var(--radius);
@@ -230,8 +188,6 @@
   .btn.reg:disabled{opacity:.38;box-shadow:none;cursor:not-allowed;transform:none;}
   .btn.rst{background:linear-gradient(135deg,var(--cyan),#2a90b0);
     box-shadow:0 4px 14px rgba(20,120,160,.38);}
-
-  /* ---- History ---- */
   .vhd{display:flex;align-items:center;justify-content:space-between;padding:13px 14px 9px;}
   .vhd-ttl{font-size:15px;font-weight:700;}
   .pill{background:var(--blue);color:#fff;font-size:11px;font-weight:700;
@@ -264,8 +220,6 @@
   .hi-qm{font-size:10px;color:var(--text-light);}
   .stag{display:inline-block;background:var(--green);color:#fff;
     font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;}
-
-  /* ---- Master ---- */
   .m-tb{padding:10px 13px 6px;display:flex;gap:8px;align-items:center;}
   .srch-i{flex:1;padding:10px 13px;border:1.5px solid var(--blue-lt);
     border-radius:10px;font-size:14px;font-family:var(--font);
@@ -285,8 +239,6 @@
   .mi-code{font-size:13px;font-weight:700;color:var(--blue);}
   .mi-name{font-size:12px;color:var(--text);}
   .mi-sub{font-size:11px;color:var(--text-light);}
-
-  /* ---- Settings ---- */
   .ss{padding:13px 13px 0;}
   .ss-lbl{font-size:11px;font-weight:700;color:var(--text-light);
     text-transform:uppercase;letter-spacing:.09em;margin-bottom:8px;}
@@ -300,8 +252,6 @@
     border:1.5px solid #f5c0c0;border-radius:10px;font-size:13px;font-weight:700;
     font-family:var(--font);cursor:pointer;-webkit-appearance:none;}
   .d-btn:active{background:#ffe0e0;}
-
-  /* ---- Modal ---- */
   #mover{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
     z-index:300;align-items:center;justify-content:center;}
   #mover.on{display:flex;}
@@ -314,13 +264,9 @@
   .m-ok{width:100%;padding:12px;font-size:15px;font-weight:700;
     background:linear-gradient(135deg,#00b09b,#5cb85c);border:none;
     border-radius:11px;color:#fff;cursor:pointer;font-family:var(--font);-webkit-appearance:none;}
-
-  /* ---- Empty ---- */
   .empty{text-align:center;padding:40px 18px;color:var(--text-light);}
   .e-ico{font-size:42px;margin-bottom:10px;}
   .e-txt{font-size:13px;line-height:1.8;}
-
-  /* ---- Toast ---- */
   #toast{position:fixed;bottom:calc(16px + env(safe-area-inset-bottom));left:50%;
     transform:translateX(-50%) translateY(70px);
     background:rgba(20,30,60,.90);color:#fff;padding:11px 22px;
@@ -332,8 +278,6 @@
   #toast.ok{background:rgba(15,158,110,.92);}
   #toast.err{background:rgba(200,50,50,.92);}
   #toast.info{background:rgba(123,63,242,.92);}
-
-  /* ---- Loading ---- */
   #load{position:fixed;inset:0;background:rgba(240,244,251,.82);
     backdrop-filter:blur(6px);-webkit-backdrop-filter:blur(6px);z-index:400;
     display:flex;flex-direction:column;align-items:center;justify-content:center;
@@ -370,8 +314,6 @@
 
   <!-- SCAN -->
   <div class="view on" id="view-scan">
-
-    <!-- 場所・担当者 -->
     <div class="card card-op">
       <div class="clabel">場所 ／ 担当者
         <span class="lock-badge" id="lkbg">&#128274; 保持中</span>
@@ -393,15 +335,12 @@
       </div>
     </div>
 
-    <!-- スキャン -->
     <div class="card card-scan">
       <div class="clabel">スキャン読取</div>
       <div class="mode-tog">
         <button type="button" class="mbtn on qr" id="mqr"  onclick="setMode('qr')">&#128247; QRコード</button>
         <button type="button" class="mbtn ocr"   id="mocr" onclick="setMode('ocr')">&#128269; OCR（図番）</button>
       </div>
-
-      <!-- ③ カメラエリア（モードで高さが変わる） -->
       <div class="cam-area" id="cama">
         <video id="cv" playsinline autoplay muted></video>
         <canvas id="qc"></canvas>
@@ -411,19 +350,13 @@
         <div id="ocrg"></div>
         <div id="flash"></div>
       </div>
-
-      <!-- Placeholder -->
       <div class="cam-ph" id="camph">
         <div class="cam-ph-ico" id="ph-ico">&#128247;</div>
         <div class="cam-ph-txt" id="ph-txt">カメラを起動してQRコードをスキャン<br>または下の手入力欄に直接入力</div>
       </div>
-
-      <!-- Buttons -->
       <button type="button" class="scanbtn qrm" id="sb-start" onclick="startCam()">&#128247; カメラを起動する</button>
       <button type="button" class="scanbtn stop" id="sb-stop"  onclick="stopCam()">&#9209; カメラを停止</button>
       <button type="button" class="scanbtn cap"  id="sb-cap"   onclick="doOCR()">&#128248; OCRキャプチャ</button>
-
-      <!-- OCR result -->
       <div class="ocr-box" id="obox">
         <div class="ocr-lbl">読み取った図番（修正可）</div>
         <input id="opi" type="text" value="----" placeholder="OCR読取待ち..."
@@ -433,11 +366,9 @@
       <button type="button" class="scanbtn srch" id="sb-srch" onclick="doOcrSrch()">&#128270; マスタ検索</button>
     </div>
 
-    <!-- 登録情報 -->
     <div class="card">
       <div class="clabel">登録情報</div>
       <button type="button" class="clr-btn" onclick="clrInfo()">クリア</button>
-
       <div class="fw">
         <label class="fl" for="zuno">図番</label>
         <input type="text" class="fi" id="zuno"
@@ -446,13 +377,11 @@
           oninput="onZunoIn()" onblur="onZunoBlur()">
       </div>
       <button type="button" class="scanbtn msrch" id="sb-msrch" onclick="doManSrch()">&#128270; マスタ検索</button>
-
       <div class="fw">
         <label class="fl" for="hinmei">品名</label>
         <textarea class="fi" id="hinmei" rows="2"
           placeholder="マスタ検索で自動入力、または手入力"></textarea>
       </div>
-
       <div class="fw">
         <label class="fl" for="sei">製番<span class="sub">（任意・9桁数字）</span></label>
         <input type="text" class="fi" id="sei" placeholder="例: 012345678"
@@ -460,15 +389,12 @@
           autocorrect="off" autocomplete="off"
           oninput="var p=this.selectionStart;this.value=this.value.replace(/[^0-9]/g,'');this.setSelectionRange(p,p);updReg()">
       </div>
-
       <div class="fw">
         <label class="fl" for="its">在庫区分</label>
         <select class="fi" id="its" onchange="updReg()">
           <option value="">&#9135; 選択してください &#9135;</option>
         </select>
       </div>
-
-      <!-- 数量 -->
       <div class="qty-sec">
         <div class="qty-lbl">数量</div>
         <div class="qty-disp">
@@ -515,7 +441,7 @@
     <div class="m-list" id="mlist"></div>
   </div>
 
-  <!-- SETTINGS ⑤ GAS URLはコード内に隠蔽 → 設定UIから削除 -->
+  <!-- SETTINGS -->
   <div class="view" id="view-settings">
     <div class="ss">
       <div class="ss-lbl">マスタデータ</div>
@@ -560,7 +486,7 @@
       <div class="ss-lbl">バージョン</div>
       <div class="s-card">
         <div class="s-row">
-          <div class="s-info">QR/OCR棚卸アプリ v2.1.0<br>
+          <div class="s-info">QR/OCR棚卸アプリ v2.2.0<br>
           ローカルDB: IndexedDB / QRエンジン: jsQR 1.4.0<br>
           OCR: Google Cloud Vision API (GAS経由)</div>
         </div>
@@ -579,7 +505,6 @@
     <button type="button" class="m-ok" onclick="closeMod()">OK</button>
   </div>
 </div>
-<!-- ⑥ iOSゴーストクリック防止用: hideLoad後300ms だけ表示 -->
 <div id="ghost-block" style="display:none;position:fixed;inset:0;z-index:399;background:transparent;"></div>
 <div id="toast"></div>
 <div id="load"><div class="spin"></div><div class="ld-lbl" id="ldlbl">処理中...</div></div>
@@ -587,17 +512,15 @@
 <script>
 'use strict';
 /* ============================================================
-   ⑤ GAS URL をコード内に隠蔽（設定UIには表示しない）
-   ▼ ここを自分のGAS Web App URLに書き換えてデプロイしてください ▼
+   GAS URL（設定UIには表示しない）
    ============================================================ */
 var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyfS-JAF1GbGaNjsZEzJ2Qugt3hzU8E2eVJQFhH29edIdZJ4UQH0ac2KiaXvyJG27cA/exec';
 
 /* ============================================================
    定数・グローバル状態
    ============================================================ */
-/* ③ モード別アスペクト比定数 */
-var SCAN_ASPECT_OCR = 2.8;   // OCRモード: 平べったい（2.8:1）
-var SCAN_ASPECT_QR  = 1.333; // QRモード : 4:3 相当（通常の正方形に近い形）
+var SCAN_ASPECT_OCR = 2.8;
+var SCAN_ASPECT_QR  = 1.333;
 
 var masterData = [];
 var dropData   = { departments:[], inventoryTypes:[] };
@@ -606,7 +529,7 @@ var persMap    = {};
 var curQty     = 0;
 var curUnit    = '個';
 var curFromMst = false;
-var curScanSrc = '';    // ④ 最後のスキャン方法: 'qr' | 'ocr' | 'manual' | ''
+var curScanSrc = '';
 
 var mode       = 'qr';
 var camOn      = false;
@@ -615,12 +538,20 @@ var qrTimer    = null;
 var ocrBusy    = false;
 var lastCode   = '';
 var lastCodeAt = 0;
-var _setCamH   = null;  // ③ カメラ高さ再計算用の参照
+var _setCamH   = null;
 var COOLDOWN   = 2200;
 
 /* ============================================================
+   ① 図番の記号除去（英数字のみ残す）
+   - マスタ検索・登録の内部処理に使用
+   - 表示（ze.value）には元のコードをそのまま使う
+   ============================================================ */
+function stripSymbols(code) {
+  return String(code).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/* ============================================================
    IndexedDB（履歴専用）
-   ② iOS optional chaining 非対応対策 → var/function で記述
    ============================================================ */
 var DBN = 'TanaTsuroV2';
 var _db = null;
@@ -668,7 +599,7 @@ function dbC(s) {
 }
 
 /* ============================================================
-   GAS通信（⑤ GAS_ENDPOINT を参照）
+   GAS通信
    ============================================================ */
 function gasGet(action, params) {
   params = params || {};
@@ -678,7 +609,7 @@ function gasGet(action, params) {
     for (var i = 0; i < keys.length; i++) {
       qs += '&' + encodeURIComponent(keys[i]) + '=' + encodeURIComponent(params[keys[i]]);
     }
-    fetch(GAS_ENDPOINT + '?' + qs)
+    fetch(GAS_ENDPOINT + '?' + qs, { redirect: 'follow' })
       .then(function(r) { return r.json(); })
       .then(resolve)
       .catch(reject);
@@ -690,6 +621,7 @@ function gasPost(body) {
     fetch(GAS_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
+      redirect: 'follow',
       body: JSON.stringify(body)
     })
       .then(function(r) { return r.json(); })
@@ -719,36 +651,35 @@ function updClock() {
 }
 
 /* ============================================================
-   マスタデータ一括読込
-   ② iOS: Promise.all は使えるが安全な書き方に
+   ② マスタデータ一括読込
+   【変更】Promise.all並列 → 逐次実行に変更
+   理由: iOS SafariでGASへの並列fetch時にリダイレクト競合が起きる場合がある
    ============================================================ */
+var _loadingMaster = false;
+
 async function loadAllMaster() {
   if (_loadingMaster) return;
   _loadingMaster = true;
   showLoad('マスタデータ読込中…');
   try {
-    var results = await Promise.all([
-      gasGet('getDropdowns'),
-      gasGet('getMasterList')
-    ]);
-    var dd     = results[0] || { departments:[], inventoryTypes:[] };
-    var master = results[1];
+    /* ② 逐次実行（並列→逐次に変更） */
+    var dd     = await gasGet('getDropdowns');
+    var master = await gasGet('getMasterList');
 
-    dropData   = dd;
+    dropData   = dd || { departments:[], inventoryTypes:[] };
     masterData = Array.isArray(master) ? master : [];
 
-    fillSel('ds',  dd.departments   || []);
-    fillSel('its', dd.inventoryTypes || []);
+    var depts = (dropData.departments   || []);
+    var stocks = (dropData.inventoryTypes || []);
 
-    var depts = dd.departments || [];
-    if (depts.length) {
-      var pResults = await Promise.all(
-        depts.map(function(d) { return gasGet('getPersonnel', { department: d }); })
-      );
-      persMap = {};
-      for (var i = 0; i < depts.length; i++) {
-        persMap[depts[i]] = (pResults[i] && pResults[i].personnel) ? pResults[i].personnel : [];
-      }
+    fillSel('ds',  depts);
+    fillSel('its', stocks);
+
+    /* 担当者マップも逐次で取得（iOS並列対策） */
+    persMap = {};
+    for (var i = 0; i < depts.length; i++) {
+      var pr = await gasGet('getPersonnel', { department: depts[i] });
+      persMap[depts[i]] = (pr && pr.personnel) ? pr.personnel : [];
     }
 
     _loadingMaster = false;
@@ -762,19 +693,13 @@ async function loadAllMaster() {
     hideLoad();
     toast('マスタ読込失敗: ' + e.message, 'err');
     var mmeta2 = document.getElementById('mmeta');
-    if (mmeta2) mmeta2.textContent = 'マスタ読込失敗: ' + e.message;
+    if (mmeta2) mmeta2.textContent = 'マスタ読込失敗 — 再読込ボタンを押してください';
   }
-  /* restoreOp() は init() のみで呼ぶ。
-     ここで呼ぶと reloadMaster() 後のタブ状態がおかしくなる場合がある */
 }
-
-var _loadingMaster = false;  /* 二重ロード防止フラグ */
 
 async function reloadMaster() {
   if (_loadingMaster) return;
   await loadAllMaster();
-  /* ⑥ sw('master') を呼ばない: loadAllMaster内でrendMaster()が呼ばれている。
-       sw()を呼ぶとゴーストクリックと競合してタブがリセットされるケースがある。 */
 }
 
 /* ============================================================
@@ -841,7 +766,6 @@ function updLock() {
 
 /* ============================================================
    モード切替（QR / OCR）
-   ③ モード切替時にカメラ高さも更新
    ============================================================ */
 function setMode(m) {
   mode = m;
@@ -856,7 +780,6 @@ function setMode(m) {
     : 'カメラを起動してOCRで図番を読取<br>または下の手入力欄に直接入力';
   if (camOn) {
     updGuide();
-    /* ③ モード切替時にカメラ高さを再計算 */
     if (_setCamH) _setCamH();
     document.getElementById('sb-cap').style.display = m === 'ocr' ? 'flex' : 'none';
     if (m === 'qr' && !qrTimer) {
@@ -877,7 +800,6 @@ function updGuide() {
 
 /* ============================================================
    カメラ起動 / 停止
-   ③ モード別の高さ計算
    ============================================================ */
 async function startCam() {
   if (camOn) return;
@@ -891,28 +813,22 @@ async function startCam() {
     var v = document.getElementById('cv');
     v.srcObject = camStr_;
     await v.play();
-
     document.getElementById('cama').style.display  = 'block';
     document.getElementById('camph').style.display = 'none';
     document.getElementById('sb-start').style.display = 'none';
     document.getElementById('sb-stop').style.display  = 'flex';
     if (mode === 'ocr') document.getElementById('sb-cap').style.display = 'flex';
-
     camOn = true;
     updGuide();
     updManSrch();
-
-    /* ③ モード別カメラ高さ設定（iOS aspect-ratio バグも回避） */
     var setH = function() {
       var wrap = document.getElementById('cama');
       if (!wrap) return;
       var dw = wrap.offsetWidth;
       var dh;
       if (mode === 'ocr') {
-        /* OCR: 平べったい（SCAN_ASPECT_OCR = 2.8:1） */
         dh = Math.round(dw / SCAN_ASPECT_OCR);
       } else {
-        /* QR: 4:3に近い形（ビデオ実サイズも考慮） */
         var vw = v.videoWidth  || 0;
         var vh = v.videoHeight || 0;
         if (vw && vh) {
@@ -924,14 +840,10 @@ async function startCam() {
       v.style.height    = dh + 'px';
       wrap.style.height = dh + 'px';
     };
-
-    _setCamH = setH;  /* モード切替時に再呼び出しできるよう参照保持 */
-
+    _setCamH = setH;
     v.addEventListener('loadedmetadata', setH, { once: true });
     setTimeout(setH, 250);
-
     if (mode === 'qr') qrTimer = setInterval(scanQR, 180);
-
   } catch(err) {
     var msg = err.name === 'NotAllowedError'   ? 'カメラのアクセスが拒否されました'
             : err.name === 'NotFoundError'     ? 'カメラが見つかりません'
@@ -1000,15 +912,11 @@ async function doOCR() {
     hideLoad();
     stopCam();
     document.getElementById('ocrg').classList.remove('scanning');
-
-    /* ② エラー応答チェック（GAS権限エラーなど） */
     if (res.error) {
       toast('OCRエラー: ' + res.error, 'err');
       ocrBusy = false;
       return;
     }
-
-    /* rawTextがGASのエラー文字列の場合もトーストで表示 */
     var rawT = (res.rawText || '').trim();
     var isErrText = rawT.indexOf('通信エラー') >= 0
                  || rawT.indexOf('VISION_API') >= 0
@@ -1020,18 +928,15 @@ async function doOCR() {
       ocrBusy = false;
       return;
     }
-
     var box = document.getElementById('obox');
     var inp = document.getElementById('opi');
     box.classList.add('on');
     if (res.part) {
-      /* ② OCR読取結果にH15→HF置換を適用 */
       inp.value = normalizeOcrCode(res.part); inp.className = '';
       document.getElementById('oph').textContent = '修正が必要な場合は直接編集し、マスタ検索を押してください';
       document.getElementById('sb-srch').style.display = 'flex';
       toast('図番を読み取りました', 'ok');
     } else if (rawT) {
-      /* ② rawTextにも記号除去・H15→HF適用（部分修正しやすくする） */
       var rv = normalizeOcrCode(rawT.replace(/\r?\n/g,' ').trim().substring(0, 40));
       inp.value = rv; inp.className = 'editing';
       document.getElementById('oph').textContent = '図番部分のみ残して修正し、マスタ検索してください';
@@ -1049,21 +954,18 @@ async function doOCR() {
   ocrBusy = false;
 }
 
-/* ③ OCR用フレームキャプチャ（SCAN_ASPECT_OCR使用・iOS高さバグ回避） */
 function capFrame() {
   var v = document.getElementById('cv');
   var vw = v.videoWidth, vh = v.videoHeight;
   if (!vw || !vh) return null;
   var wrap  = document.getElementById('cama');
   var dispW = wrap.getBoundingClientRect().width;
-  var dispH = dispW / SCAN_ASPECT_OCR;  /* ★ widthから逆算 */
-
+  var dispH = dispW / SCAN_ASPECT_OCR;
   var gL = 0.08 * dispW, gT = 0.12 * dispH, gW = 0.84 * dispW, gH = 0.76 * dispH;
   var vAsp = vw / vh, dAsp = SCAN_ASPECT_OCR;
   var scale, ox, oy;
   if (vAsp > dAsp) { scale = dispH / vh; ox = (vw * scale - dispW) / 2; oy = 0; }
   else             { scale = dispW / vw; ox = 0; oy = (vh * scale - dispH) / 2; }
-
   var sx = Math.round((gL + ox) / scale);
   var sy = Math.round((gT + oy) / scale);
   var sw = Math.round(gW / scale);
@@ -1072,12 +974,10 @@ function capFrame() {
   sy = Math.max(0, Math.min(vh - 1, sy));
   sw = Math.max(1, Math.min(vw - sx, sw));
   sh = Math.max(1, Math.min(vh - sy, sh));
-
   var full = document.createElement('canvas'); full.width = vw; full.height = vh;
   full.getContext('2d').drawImage(v, 0, 0, vw, vh);
   var crop = document.createElement('canvas'); crop.width = sw; crop.height = sh;
   crop.getContext('2d').drawImage(full, sx, sy, sw, sh, 0, 0, sw, sh);
-
   var out = crop;
   var MX  = 1000;
   if (crop.width > MX || crop.height > MX) {
@@ -1091,12 +991,10 @@ function capFrame() {
 }
 
 /* ============================================================
-   ① ② OCRコード正規化: 記号除去 + H15→HF置換
+   OCRコード正規化（表示用）: 記号除去 + H15→HF置換
    ============================================================ */
 function normalizeOcrCode(raw) {
-  /* ① 記号を除去（英数字・ハイフンのみ残す） */
   var s = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
-  /* ② H15 で始まる場合は HF に置換 */
   s = s.replace(/^H15/, 'HF');
   return s;
 }
@@ -1125,7 +1023,6 @@ function opiBlur() {
    マスタ検索（OCR後・手入力後）
    ============================================================ */
 function doOcrSrch() {
-  /* ① 記号除去 + ② H15→HF置換してからマスタ検索 */
   var raw = document.getElementById('opi').value.trim();
   var code = normalizeOcrCode(raw);
   if (!code || code === '----') { toast('図番を入力してください', 'err'); return; }
@@ -1143,23 +1040,29 @@ function doManSrch() {
 }
 
 /* ============================================================
-   コード確定 → masterData（メモリ）照合 → フィールド反映
-   ④ QR読取後: 図番・品名 → readonly（修正不可）
-      OCR読取後: 図番・品名 → 編集可能（修正可）
-      手入力後 : 図番・品名 → 編集可能
+   ① コード確定 → masterData照合 → フィールド反映
+   【変更】マスタ検索を stripSymbols() で正規化した値で比較
+   - 表示（ze.value）: 読み取ったままのコード
+   - マスタ検索    : stripSymbols() で記号除去して比較
+   - 登録保存      : regData() 内で stripSymbols() 適用
    ============================================================ */
 function applyCode(code, src) {
   curScanSrc = src;
+
+  /* ① 記号除去した値でマスタ検索 */
+  var searchKey = stripSymbols(code);
   var hit = null;
   for (var i = 0; i < masterData.length; i++) {
-    if (masterData[i].product_code.toUpperCase() === code.toUpperCase()) {
+    if (stripSymbols(masterData[i].product_code) === searchKey) {
       hit = masterData[i]; break;
     }
   }
+
   var ze = document.getElementById('zuno');
   var he = document.getElementById('hinmei');
 
   if (hit) {
+    /* マスタヒット: 表示はマスタの正式コード */
     ze.value = hit.product_code;
     he.value = hit.product_name || '';
     curUnit = hit.unit || '個'; curFromMst = true;
@@ -1168,6 +1071,7 @@ function applyCode(code, src) {
     document.getElementById('qu').textContent = curUnit;
     toast('マスタ確認済。数量を入力して登録してください', 'ok');
   } else {
+    /* マスタ未登録: 表示は読み取ったまま（内部登録時はstripSymbols適用） */
     ze.value = code; he.value = ''; curUnit = '個'; curFromMst = false;
     ze.className = 'fi warn'; he.className = 'fi warn';
     he.placeholder = '（マスタ未登録 — 品名を手入力してください）';
@@ -1175,7 +1079,7 @@ function applyCode(code, src) {
     toast('マスタ未登録です。品名を手入力してください', 'info');
   }
 
-  /* ④ QR読取のみ readonly、OCR/手入力は編集可能 */
+  /* QR読取のみ readonly、OCR/手入力は編集可能 */
   if (src === 'qr') {
     ze.setAttribute('readonly', true);
     he.setAttribute('readonly', true);
@@ -1193,7 +1097,6 @@ function applyCode(code, src) {
    図番手入力
    ============================================================ */
 function onZunoIn() {
-  /* ③ 図番: 英数字のみ許可、英字は大文字変換 */
   var el  = document.getElementById('zuno');
   var pos = el.selectionStart;
   var cleaned = el.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
@@ -1238,20 +1141,25 @@ function updReg() {
 }
 
 /* ============================================================
-   データ登録 → IndexedDB
+   ① データ登録 → IndexedDB
+   【変更】zuno保存時に stripSymbols() で記号除去した値を使用
    ============================================================ */
 async function regData() {
   var now = new Date();
   var pad = function(n) { return String(n).padStart(2, '0'); };
-  var zuno = document.getElementById('zuno').value.trim().toUpperCase();
+
+  /* ① 表示値から記号除去して正式な図番として登録 */
+  var rawZuno  = document.getElementById('zuno').value.trim();
+  var zuno     = stripSymbols(rawZuno);
+
   var size = '';
   for (var i = 0; i < masterData.length; i++) {
-    if (masterData[i].product_code === zuno) { size = masterData[i].size || ''; break; }
+    if (stripSymbols(masterData[i].product_code) === zuno) { size = masterData[i].size || ''; break; }
   }
   var rec = {
     date:          now.getFullYear() + '/' + pad(now.getMonth()+1) + '/' + pad(now.getDate()),
     time:          pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()),
-    zuno:          zuno,
+    zuno:          zuno,             /* ① 記号除去済み */
     seiban:        document.getElementById('sei').value.trim(),
     hinmei:        document.getElementById('hinmei').value.trim(),
     size:          size,
@@ -1373,7 +1281,7 @@ async function sendData() {
 }
 
 /* ============================================================
-   ② マスタビュー（メモリから描画 → iOS IndexedDB問題を根本解消）
+   ② マスタビュー（メモリから描画）
    ============================================================ */
 function rendMaster() {
   var searchEl = document.getElementById('msrchi');
@@ -1388,25 +1296,40 @@ function rendMaster() {
 
   if (!masterData.length) {
     list.innerHTML = '<div class="empty"><div class="e-ico">&#128451;</div>' +
-      '<div class="e-txt">マスタデータが読み込まれていません<br>設定タブの「再読込」ボタンを押してください</div></div>';
+      '<div class="e-txt">マスタデータが読み込まれていません<br>上の「再読込」ボタンを押してください</div></div>';
     return;
   }
   if (!filt.length) {
     list.innerHTML = '<div class="empty"><div class="e-ico">&#128269;</div><div class="e-txt">該当なし</div></div>';
     return;
   }
-  list.innerHTML = filt.map(function(p) {
-    var sub = [p.size, p.unit].filter(Boolean).map(h).join(' / ');
-    return '<div class="mi">' +
+  /* ② iOS対策: innerHTML一括生成ではなくDocumentFragmentで構築 */
+  var frag = document.createDocumentFragment();
+  var limit = Math.min(filt.length, 200);  /* 表示上限200件（パフォーマンス） */
+  for (var i = 0; i < limit; i++) {
+    var p = filt[i];
+    var div = document.createElement('div');
+    div.className = 'mi';
+    var sub = [p.size, p.unit].filter(Boolean).map(function(s) { return h(s); }).join(' / ');
+    div.innerHTML =
       '<div class="mi-code">' + h(p.product_code) + '</div>' +
       '<div class="mi-name">' + h(p.product_name || '—') + '</div>' +
-      (sub ? '<div class="mi-sub">' + sub + '</div>' : '') +
-    '</div>';
-  }).join('');
+      (sub ? '<div class="mi-sub">' + sub + '</div>' : '');
+    frag.appendChild(div);
+  }
+  list.innerHTML = '';
+  list.appendChild(frag);
+  if (filt.length > limit) {
+    var note = document.createElement('div');
+    note.style.cssText = 'text-align:center;padding:8px;font-size:11px;color:var(--text-light)';
+    note.textContent = '他 ' + (filt.length - limit) + '件 … 検索で絞り込んでください';
+    list.appendChild(note);
+  }
 }
 
 /* ============================================================
-   タブ切替
+   ② タブ切替
+   【変更】masterタブ: データが空なら自動で loadAllMaster() を呼ぶ
    ============================================================ */
 function sw(name) {
   var tabs = ['scan','hist','master','settings'];
@@ -1419,7 +1342,14 @@ function sw(name) {
   }
   if (name !== 'scan' && camOn) stopCam();
   if (name === 'hist')   rendHist();
-  if (name === 'master') rendMaster();
+  if (name === 'master') {
+    if (masterData.length === 0 && !_loadingMaster) {
+      /* ② iPhoneでmasterDataが空のままタブを開いた場合、自動再取得 */
+      loadAllMaster();
+    } else {
+      rendMaster();
+    }
+  }
   document.getElementById('main').scrollTop = 0;
 }
 
@@ -1481,7 +1411,6 @@ function showLoad(t) {
 }
 function hideLoad() {
   document.getElementById('load').classList.remove('on');
-  /* ⑥ iOS ゴーストクリック防止: ローディング消去後 350ms だけ透明オーバーレイでタップを吸収 */
   var gb = document.getElementById('ghost-block');
   if (gb) {
     gb.style.display = 'block';
