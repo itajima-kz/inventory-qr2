@@ -514,13 +514,20 @@
 /* ============================================================
    GAS URL（設定UIには表示しない）
    ============================================================ */
-var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbyfS-JAF1GbGaNjsZEzJ2Qugt3hzU8E2eVJQFhH29edIdZJ4UQH0ac2KiaXvyJG27cA/exec';
+var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbwZOrHQX1be54jpWtwTAnU8NwaAOqWIrjKuzGCjs3bjcJUgGQDcy7S-4-jCV5mY4rGG/exec';
 
 /* ============================================================
    定数・グローバル状態
    ============================================================ */
 var SCAN_ASPECT_OCR = 2.8;
 var SCAN_ASPECT_QR  = 1.333;
+
+/*
+ * OCR送信用の最大辺サイズ（px）
+ * Vision APIは大きな画像を送っても精度は変わらず処理時間だけ増える
+ * 800px が精度・速度のベストバランス
+ */
+var OCR_MAX_PX = 800;
 
 var masterData = [];
 var dropData   = { departments:[], inventoryTypes:[] };
@@ -548,6 +555,66 @@ var COOLDOWN   = 2200;
    ============================================================ */
 function stripSymbols(code) {
   return String(code).trim().toUpperCase().replace(/[^A-Z0-9]/g, '');
+}
+
+/* ============================================================
+   ★ OCR精度向上のための画像前処理
+   Step1: グレースケール変換（カラー不要・データ量削減）
+   Step2: ヒストグラムストレッチ（蛍光灯・影・反射を補正）
+   Step3: アンシャープマスク（文字エッジを強調・かすれ対策）
+   ============================================================ */
+function preprocessForOCR(srcCanvas) {
+  var w = srcCanvas.width, h = srcCanvas.height;
+  var dst = document.createElement('canvas');
+  dst.width = w; dst.height = h;
+  var ctx = dst.getContext('2d');
+  ctx.drawImage(srcCanvas, 0, 0);
+  var id = ctx.getImageData(0, 0, w, h);
+  var data = id.data;
+  var len = w * h;
+
+  /* Step1: グレースケール（整数演算で高速化） */
+  var gray = new Uint8Array(len);
+  for (var i = 0; i < len; i++) {
+    var p = i * 4;
+    gray[i] = (77 * data[p] + 150 * data[p+1] + 29 * data[p+2]) >> 8;
+  }
+
+  /* Step2: ヒストグラムストレッチ */
+  var lo = 255, hi = 0;
+  for (var j = 0; j < len; j++) {
+    if (gray[j] < lo) lo = gray[j];
+    if (gray[j] > hi) hi = gray[j];
+  }
+  var range = (hi - lo) || 1;
+  for (var k = 0; k < len; k++) {
+    gray[k] = (gray[k] - lo) * 255 / range + 0.5 | 0;
+  }
+
+  /* Step3: アンシャープマスク（ラプラシアン strength=1.2） */
+  var sharp = new Uint8Array(len);
+  var strength = 1.2;
+  for (var y = 0; y < h; y++) {
+    for (var x = 0; x < w; x++) {
+      var idx = y * w + x;
+      var center = gray[idx];
+      var top = gray[(y > 0   ? y-1 : 0)   * w + x];
+      var bot = gray[(y < h-1 ? y+1 : h-1) * w + x];
+      var lft = gray[y * w + (x > 0   ? x-1 : 0)];
+      var rgt = gray[y * w + (x < w-1 ? x+1 : w-1)];
+      var lap = (center << 2) - top - bot - lft - rgt;
+      var v = (center + strength * lap + 0.5) | 0;
+      sharp[idx] = v < 0 ? 0 : v > 255 ? 255 : v;
+    }
+  }
+
+  /* Step4: RGBAに書き戻し */
+  for (var m = 0; m < len; m++) {
+    var q = m * 4;
+    data[q] = data[q+1] = data[q+2] = sharp[m];
+  }
+  ctx.putImageData(id, 0, 0);
+  return dst;
 }
 
 /* ============================================================
@@ -979,7 +1046,8 @@ function capFrame() {
   var crop = document.createElement('canvas'); crop.width = sw; crop.height = sh;
   crop.getContext('2d').drawImage(full, sx, sy, sw, sh, 0, 0, sw, sh);
   var out = crop;
-  var MX  = 1000;
+  /* ★ 最大サイズを 1000→800px に変更（速度向上）*/
+  var MX  = OCR_MAX_PX;
   if (crop.width > MX || crop.height > MX) {
     var r2 = Math.min(MX / crop.width, MX / crop.height);
     out = document.createElement('canvas');
@@ -987,7 +1055,10 @@ function capFrame() {
     out.height = Math.round(crop.height * r2);
     out.getContext('2d').drawImage(crop, 0, 0, out.width, out.height);
   }
-  return out.toDataURL('image/jpeg', 0.85).replace(/^data:image\/jpeg;base64,/, '');
+  /* ★ 画像前処理（グレースケール + コントラスト正規化 + アンシャープマスク） */
+  out = preprocessForOCR(out);
+  /* ★ JPEG品質 0.85→0.82（グレースケール後は低品質でも十分・通信量削減） */
+  return out.toDataURL('image/jpeg', 0.82).replace(/^data:image\/jpeg;base64,/, '');
 }
 
 /* ============================================================
