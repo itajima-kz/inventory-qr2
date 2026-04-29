@@ -187,7 +187,10 @@
   .ocr-lbl{font-size:10px;color:#888;margin-bottom:3px;}
   #opi{width:100%;font-size:22px;font-weight:800;text-align:center;letter-spacing:2px;
     background:#111;color:#00ff88;border:2px solid transparent;
-    border-radius:6px;padding:6px;outline:none;font-family:monospace;-webkit-appearance:none;}
+    border-radius:6px;padding:6px;outline:none;font-family:monospace;-webkit-appearance:none;
+    text-transform:uppercase;}
+  /* iOSテンキー入力中も視覚的に大文字表示するため text-transform を付与 */
+  #zuno{text-transform:uppercase;}
   #opi:focus{border-color:#00ff88;}
   #opi.notfound{color:#ff5555;}
   #opi.editing{border-color:#ffaa00;color:#ffaa00;}
@@ -395,7 +398,7 @@
         <div class="ocr-lbl">読み取った図番（修正可）</div>
         <input id="opi" type="text" value="----" placeholder="OCR読取待ち..."
           autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false"
-          oninput="opiEdit()" onblur="opiBlur()">
+          oninput="opiEdit(event)" oncompositionend="opiEdit(event)" onblur="opiBlur()">
         <div class="ocr-hint" id="oph">OCR読み取り後、手修正も可能です</div>
       </div>
       <button type="button" class="scanbtn srch" id="sb-srch" onclick="doOcrSrch()">&#128270; マスタ検索</button>
@@ -409,7 +412,7 @@
         <input type="text" class="fi" id="zuno"
           placeholder="QRスキャン後に自動入力 または直接入力"
           autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false"
-          oninput="onZunoIn()" onblur="onZunoBlur()">
+          oninput="onZunoIn(event)" oncompositionend="onZunoIn(event)" onblur="onZunoBlur()">
       </div>
       <button type="button" class="scanbtn msrch" id="sb-msrch" onclick="doManSrch()">&#128270; マスタ検索</button>
       <div class="fw">
@@ -422,7 +425,7 @@
         <input type="text" class="fi" id="sei" placeholder="例: 012345678"
           maxlength="9" inputmode="numeric" pattern="[0-9]*"
           autocorrect="off" autocomplete="off"
-          oninput="onSeiInput(this)">
+          oninput="onSeiInput(this, event)" oncompositionend="onSeiInput(this, event)">
       </div>
       <div class="fw">
         <label class="fl" for="its">在庫区分</label>
@@ -521,10 +524,10 @@
       <div class="ss-lbl">バージョン</div>
       <div class="s-card">
         <div class="s-row">
-          <div class="s-info">DX棚卸アプリ v2.3.1<br>
+          <div class="s-info">DX棚卸アプリ v2.3.2<br>
           ローカルDB: IndexedDB / QRエンジン: jsQR 1.4.0<br>
           OCR: Google Cloud Vision API (GAS経由)<br>
-          <span style="color:#0f9e6e;font-weight:700;">✔ iOS重複入力バグ修正済み</span></div>
+          <span style="color:#0f9e6e;font-weight:700;">✔ iOS入力バグ修正済み（QWERTY重複・テンキーマルチタップ対応）</span></div>
         </div>
       </div>
     </div>
@@ -1151,18 +1154,22 @@ function normalizeOcrCode(raw) {
 }
 
 /* ============================================================
-   ★ [BUG FIX v2.3.1] OCRパート編集
+   ★ [BUG FIX v2.3.2] OCRパート編集
    
-   【修正内容】
-   iOS Safari では oninput ハンドラ内で el.value を同期的に書き換えると
-   入力コンポジションエンジンが再発火し、入力した文字が重複・多重挿入される
-   バグがある（例: "J→M→W" と入力すると "JMWJMWJMJJ" になる）。
+   【追加修正】iPhone テンキー(マルチタップ)入力対応
+   IME composition中にel.valueを書き換えるとIMEの内部状態が壊れ、
+   2文字目以降の循環入力(A→B→C)が機能しなくなる。
+   - oninput: e.isComposingがtrueなら何もしない
+   - oncompositionend: composition確定後に整形を実行
+   - CSS: text-transform:uppercaseで視覚的に大文字表示
    
-   【修正方法】
-   el.value の書き換えを setTimeout(fn, 0) で1tick遅延させ、
-   WebKitのコンポジション処理が完了してから値を差し替える。
+   【既存修正】iOS Safari の oninput内 el.value 同期書き換え時の
+   入力コンポジション再発火による文字重複バグを setTimeout(0) で回避。
    ============================================================ */
-function opiEdit() {
+function opiEdit(e) {
+  /* ★ iOSテンキー(マルチタップ)入力中はスキップ */
+  if (e && e.isComposing) return;
+
   var el = document.getElementById('opi');
   el.className = 'editing';
   document.getElementById('oph').textContent = '✎ 編集中 — 修正後にマスタ検索してください';
@@ -1170,20 +1177,18 @@ function opiEdit() {
   var raw = el.value;
   var up  = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
   if (raw !== up) {
-    /* ★ iOS修正: 同期書き換えを避け1tick遅延させる */
+    /* ★ iOS QWERTY重複入力バグ修正: 同期書き換えを避け1tick遅延させる */
     var pos  = el.selectionStart;
     var diff = raw.length - up.length;
     setTimeout(function() {
       el.value = up;
       var np = Math.max(0, pos - diff);
       el.setSelectionRange(np, np);
-      /* 遅延後にsrchボタン表示も更新 */
       var has2 = el.value.trim() && el.value.trim() !== '----';
       document.getElementById('sb-srch').style.display = has2 ? 'flex' : 'none';
     }, 0);
   }
 
-  /* setTimeout前の値で即時表示更新（遅延中もボタン状態を維持） */
   var has = raw.trim() && raw.trim() !== '----';
   document.getElementById('sb-srch').style.display = has ? 'flex' : 'none';
 }
@@ -1262,10 +1267,13 @@ function applyCode(code, src) {
 }
 
 /* ============================================================
-   ★ [BUG FIX v2.3.1] 図番手入力
-   同上: setTimeout(0) で el.value 書き換えを1tick遅延
+   ★ [BUG FIX v2.3.2] 図番手入力
+   同上: iPhone テンキー対応 + iOS QWERTY 重複バグ対応
    ============================================================ */
-function onZunoIn() {
+function onZunoIn(e) {
+  /* ★ iOSテンキー(マルチタップ)入力中はスキップ */
+  if (e && e.isComposing) return;
+
   var el  = document.getElementById('zuno');
   var raw     = el.value;
   var cleaned = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
@@ -1296,12 +1304,13 @@ function updManSrch() {
 }
 
 /* ============================================================
-   ★ [BUG FIX v2.3.1] 製番入力
-   インラインoninputを関数化 + setTimeout(0)で1tick遅延
-   旧: oninput="var p=this.selectionStart;this.value=this.value.replace(/[^0-9]/g,'');..."
-   新: oninput="onSeiInput(this)"
+   ★ [BUG FIX v2.3.2] 製番入力
+   同上: iPhone テンキー対応 + iOS QWERTY 重複バグ対応
    ============================================================ */
-function onSeiInput(el) {
+function onSeiInput(el, e) {
+  /* ★ iOSテンキー(マルチタップ)入力中はスキップ */
+  if (e && e.isComposing) return;
+
   var raw     = el.value;
   var cleaned = raw.replace(/[^0-9]/g, '');
   if (raw !== cleaned) {
