@@ -760,10 +760,12 @@ function updClock() {
    ============================================================ */
 var _loadingMaster = false;
 
-async function loadAllMaster() {
+async function loadAllMaster(isReload) {
   if (_loadingMaster) return;
   _loadingMaster = true;
-  showLoad('アプリ起動中… マスタデータを読み込んでいます。しばらくお待ちください。');
+  showLoad(isReload
+    ? 'マスタデータ再読み込み中…'
+    : 'アプリ起動中… マスタデータを読み込んでいます。しばらくお待ちください。');
   try {
     var dd     = await gasGet('getDropdowns');
     var master = await gasGet('getMasterList');
@@ -800,7 +802,7 @@ async function loadAllMaster() {
 
 async function reloadMaster() {
   if (_loadingMaster) return;
-  await loadAllMaster();
+  await loadAllMaster(true);
 }
 
 /* ============================================================
