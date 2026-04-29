@@ -318,7 +318,7 @@
   .spin{width:46px;height:46px;border:4px solid var(--blue-lt);
     border-top-color:var(--blue);border-radius:50%;animation:sp .72s linear infinite;}
   @keyframes sp{to{transform:rotate(360deg)}}
-  .ld-lbl{font-size:14px;color:var(--text-mid);font-weight:700;}
+  .ld-lbl{font-size:14px;color:var(--text-mid);font-weight:700;white-space:pre-line;text-align:center;line-height:1.8;}
   ::-webkit-scrollbar{display:none;}
   </style>
 </head>
@@ -765,7 +765,7 @@ async function loadAllMaster(isReload) {
   _loadingMaster = true;
   showLoad(isReload
     ? 'マスタデータ再読み込み中…'
-    : 'アプリ起動中… マスタデータを読み込んでいます。しばらくお待ちください。');
+    : 'アプリ起動中…\nマスタデータを読み込んでいます。\nしばらくお待ちください。');
   try {
     var dd     = await gasGet('getDropdowns');
     var master = await gasGet('getMasterList');
