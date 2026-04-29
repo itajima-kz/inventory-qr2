@@ -763,7 +763,7 @@ var _loadingMaster = false;
 async function loadAllMaster() {
   if (_loadingMaster) return;
   _loadingMaster = true;
-  showLoad('マスタデータ読込中…');
+  showLoad('アプリ起動中… マスタデータを読み込んでいます。しばらくお待ちください。');
   try {
     var dd     = await gasGet('getDropdowns');
     var master = await gasGet('getMasterList');
