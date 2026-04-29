@@ -33,7 +33,6 @@
   body{font-family:var(--font);background:var(--bg);color:var(--text);
     height:100%;height:-webkit-fill-available;overflow:hidden;
     display:flex;flex-direction:column;}
-  /* モバイル: app-wrap = body全体を覆うflex列 */
   .app-wrap{flex:1;min-height:0;display:flex;flex-direction:column;overflow:hidden;}
   .hdr{position:sticky;top:0;z-index:100;
     background:linear-gradient(135deg,var(--primary),var(--primary-dark));
@@ -63,7 +62,6 @@
 
   /* ===== PC レイアウト（560px以上） ===== */
   @media (min-width:560px){
-    /* body・html: 通常ドキュメントフローに戻す */
     html{height:auto;overflow-y:auto;}
     body{
       height:auto;overflow:visible;
@@ -71,7 +69,6 @@
       min-height:100vh;
       padding:28px 16px 48px;
     }
-    /* app-wrap: 中央寄せカード */
     .app-wrap{
       max-width:1040px;
       margin:0 auto;
@@ -83,11 +80,8 @@
       background:var(--bg);
       display:flex;flex-direction:column;
     }
-    /* PC: タイトル文字を大きく */
     .hdr-title{font-size:26px;}
-    /* PC: ヘッダーはstickyで上部固定（safe-area不要） */
     .hdr{position:sticky;top:0;padding-top:0;}
-    /* PC: mainは通常フロー（bodyがスクロール） */
     .main{flex:1;overflow-y:visible;overflow-x:visible;padding-bottom:24px;}
   }
   @keyframes fadeUp{from{opacity:0;transform:translateY(7px)}to{opacity:1;transform:translateY(0)}}
@@ -400,6 +394,7 @@
       <div class="ocr-box" id="obox">
         <div class="ocr-lbl">読み取った図番（修正可）</div>
         <input id="opi" type="text" value="----" placeholder="OCR読取待ち..."
+          autocapitalize="characters" autocorrect="off" autocomplete="off" spellcheck="false"
           oninput="opiEdit()" onblur="opiBlur()">
         <div class="ocr-hint" id="oph">OCR読み取り後、手修正も可能です</div>
       </div>
@@ -427,7 +422,7 @@
         <input type="text" class="fi" id="sei" placeholder="例: 012345678"
           maxlength="9" inputmode="numeric" pattern="[0-9]*"
           autocorrect="off" autocomplete="off"
-          oninput="var p=this.selectionStart;this.value=this.value.replace(/[^0-9]/g,'');this.setSelectionRange(p,p);updReg()">
+          oninput="onSeiInput(this)">
       </div>
       <div class="fw">
         <label class="fl" for="its">在庫区分</label>
@@ -526,9 +521,10 @@
       <div class="ss-lbl">バージョン</div>
       <div class="s-card">
         <div class="s-row">
-          <div class="s-info">DX棚卸アプリ v2.3.0<br>
+          <div class="s-info">DX棚卸アプリ v2.3.1<br>
           ローカルDB: IndexedDB / QRエンジン: jsQR 1.4.0<br>
-          OCR: Google Cloud Vision API (GAS経由)</div>
+          OCR: Google Cloud Vision API (GAS経由)<br>
+          <span style="color:#0f9e6e;font-weight:700;">✔ iOS重複入力バグ修正済み</span></div>
         </div>
       </div>
     </div>
@@ -563,11 +559,6 @@ var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbw_sVBU83HQzh2prLGSd
 var SCAN_ASPECT_OCR = 2.8;
 var SCAN_ASPECT_QR  = 1.333;
 
-/*
- * OCR送信用の最大辺サイズ（px）
- * Vision APIは大きな画像を送っても精度は変わらず処理時間だけ増える
- * 800px が精度・速度のベストバランス
- */
 var OCR_MAX_PX = 800;
 
 var masterData = [];
@@ -592,33 +583,15 @@ var _setCamH   = null;
 var COOLDOWN   = 2200;
 
 /* ============================================================
-   ① 図番の記号除去（英数字のみ残す）
-   - マスタ検索・登録の内部処理に使用
-   - 表示（ze.value）には元のコードをそのまま使う
-   ============================================================ */
-/* ============================================================
-   ② 末尾ゼロ・空白除去（JAN / QR 共通）
-   右から1文字ずつ検査し「0」または「空白」なら除去
-   例: "H52921 000000" → "H52921"
-   ============================================================ */
-/* ============================================================
-   ② 末尾ゼロ・空白除去（JAN / QR 共通）
-   右から1文字ずつ「0」または空白を検査して除去する。
-   先頭から7文字目を処理した時点で停止（それより左は変更しない）。
-
-   例① H52921 000000  → H52921   （7文字目=spaceまで除去して停止）
-   例② H52920 000000  → H52920   （同上。6文字目の'0'は保護）
-   例③ 1234567000000  → 1234567  （7文字目='7'で自然停止）
-   例④ H5292101 000000 → H5292101 （8文字目='1'で自然停止）
-   例⑦ 6440770100000  → 64407701 （8文字目='1'で自然停止）
+   末尾ゼロ・空白除去（JAN / QR 共通）
    ============================================================ */
 function stripTrailingZeroSpace(code) {
   var s = code;
   while (s.length >= 7) {
     var last = s[s.length - 1];
-    if (last !== '0' && last !== ' ') break; /* 0・空白以外→停止 */
-    s = s.slice(0, -1);                       /* 末尾1文字除去     */
-    if (s.length < 7) break;                  /* 7文字目を除去済み→停止 */
+    if (last !== '0' && last !== ' ') break;
+    s = s.slice(0, -1);
+    if (s.length < 7) break;
   }
   return s;
 }
@@ -629,9 +602,6 @@ function stripSymbols(code) {
 
 /* ============================================================
    ★ OCR精度向上のための画像前処理
-   Step1: グレースケール変換（カラー不要・データ量削減）
-   Step2: ヒストグラムストレッチ（蛍光灯・影・反射を補正）
-   Step3: アンシャープマスク（文字エッジを強調・かすれ対策）
    ============================================================ */
 function preprocessForOCR(srcCanvas) {
   var w = srcCanvas.width, h = srcCanvas.height;
@@ -643,14 +613,12 @@ function preprocessForOCR(srcCanvas) {
   var data = id.data;
   var len = w * h;
 
-  /* Step1: グレースケール（整数演算で高速化） */
   var gray = new Uint8Array(len);
   for (var i = 0; i < len; i++) {
     var p = i * 4;
     gray[i] = (77 * data[p] + 150 * data[p+1] + 29 * data[p+2]) >> 8;
   }
 
-  /* Step2: ヒストグラムストレッチ */
   var lo = 255, hi = 0;
   for (var j = 0; j < len; j++) {
     if (gray[j] < lo) lo = gray[j];
@@ -661,7 +629,6 @@ function preprocessForOCR(srcCanvas) {
     gray[k] = (gray[k] - lo) * 255 / range + 0.5 | 0;
   }
 
-  /* Step3: アンシャープマスク（ラプラシアン strength=1.2） */
   var sharp = new Uint8Array(len);
   var strength = 1.2;
   for (var y = 0; y < h; y++) {
@@ -678,7 +645,6 @@ function preprocessForOCR(srcCanvas) {
     }
   }
 
-  /* Step4: RGBAに書き戻し */
   for (var m = 0; m < len; m++) {
     var q = m * 4;
     data[q] = data[q+1] = data[q+2] = sharp[m];
@@ -774,8 +740,8 @@ async function init() {
   await openDB();
   syncHdr(); setTimeout(syncHdr, 400);
   setInterval(updClock, 1000); updClock();
-  setMode('jan');    /* ③ 初期モードをJANに設定 */
-  initJanReader();   /* ② ZXingリーダー初期化 */
+  setMode('jan');
+  initJanReader();
   await loadAllMaster();
   restoreOp();
   await rendHist();
@@ -790,9 +756,7 @@ function updClock() {
 }
 
 /* ============================================================
-   ② マスタデータ一括読込
-   【変更】Promise.all並列 → 逐次実行に変更
-   理由: iOS SafariでGASへの並列fetch時にリダイレクト競合が起きる場合がある
+   マスタデータ一括読込
    ============================================================ */
 var _loadingMaster = false;
 
@@ -801,7 +765,6 @@ async function loadAllMaster() {
   _loadingMaster = true;
   showLoad('マスタデータ読込中…');
   try {
-    /* ② 逐次実行（並列→逐次に変更） */
     var dd     = await gasGet('getDropdowns');
     var master = await gasGet('getMasterList');
 
@@ -814,7 +777,6 @@ async function loadAllMaster() {
     fillSel('ds',  depts);
     fillSel('its', stocks);
 
-    /* 担当者マップも逐次で取得（iOS並列対策） */
     persMap = {};
     for (var i = 0; i < depts.length; i++) {
       var pr = await gasGet('getPersonnel', { department: depts[i] });
@@ -904,7 +866,7 @@ function updLock() {
 }
 
 /* ============================================================
-   ③ モード切替（JAN / QR / OCR）
+   モード切替（JAN / QR / OCR）
    ============================================================ */
 function setMode(m) {
   mode = m;
@@ -932,7 +894,6 @@ function setMode(m) {
     updGuide();
     if (_setCamH) _setCamH();
     document.getElementById('sb-cap').style.display = m === 'ocr' ? 'flex' : 'none';
-    /* タイマーをすべてクリアしてから現モードのタイマーを起動 */
     clearInterval(qrTimer);  qrTimer  = null;
     clearInterval(janTimer); janTimer = null;
     if (m === 'qr')  qrTimer  = setInterval(scanQR,  180);
@@ -941,7 +902,6 @@ function setMode(m) {
 }
 
 function updGuide() {
-  /* JAN・QRはコーナー＋スキャンライン表示、OCRはOCRガイド表示 */
   var isBarcode = (mode === 'qr' || mode === 'jan');
   var corners = document.querySelectorAll('.qrc');
   for (var i = 0; i < corners.length; i++) corners[i].style.display = isBarcode ? '' : 'none';
@@ -1034,7 +994,7 @@ function scanQR() {
   var res = jsQR(img.data, w, hh, { inversionAttempts: 'dontInvert' });
   if (!res || !res.data) return;
   var code = res.data.trim();
-  code = stripTrailingZeroSpace(code); /* ② 末尾0・空白除去 */
+  code = stripTrailingZeroSpace(code);
   if (!code) return;
   var now  = Date.now();
   if (code === lastCode && now - lastCodeAt < COOLDOWN) return;
@@ -1048,11 +1008,10 @@ function scanQR() {
 }
 
 /* ============================================================
-   ② JANスキャン（ZXing: EAN-13/8, Code128, Code39, ITF など）
-   処理フローはQRと同じ（読取→stripTrailingZeroSpace→applyCode）
+   JANスキャン（ZXing）
    ============================================================ */
 function scanJAN() {
-  if (!janReader) return;  /* ZXing未ロード時はスキップ */
+  if (!janReader) return;
   var v = document.getElementById('cv');
   var c = document.getElementById('qc');
   if (!v || v.readyState < 2) return;
@@ -1065,10 +1024,10 @@ function scanJAN() {
     var lum    = new ZXing.HTMLCanvasElementLuminanceSource(c);
     var bitmap = new ZXing.BinaryBitmap(new ZXing.HybridBinarizer(lum));
     code = janReader.decode(bitmap).getText();
-  } catch(e) { return; } /* NotFoundException は正常 */
+  } catch(e) { return; }
   if (!code) return;
   code = code.trim();
-  code = stripTrailingZeroSpace(code); /* ② 末尾0・空白除去 */
+  code = stripTrailingZeroSpace(code);
   if (!code) return;
   var now = Date.now();
   if (code === lastCode && now - lastCodeAt < COOLDOWN) return;
@@ -1168,7 +1127,6 @@ function capFrame() {
   var crop = document.createElement('canvas'); crop.width = sw; crop.height = sh;
   crop.getContext('2d').drawImage(full, sx, sy, sw, sh, 0, 0, sw, sh);
   var out = crop;
-  /* ★ 最大サイズを 1000→800px に変更（速度向上）*/
   var MX  = OCR_MAX_PX;
   if (crop.width > MX || crop.height > MX) {
     var r2 = Math.min(MX / crop.width, MX / crop.height);
@@ -1177,14 +1135,12 @@ function capFrame() {
     out.height = Math.round(crop.height * r2);
     out.getContext('2d').drawImage(crop, 0, 0, out.width, out.height);
   }
-  /* ★ 画像前処理（グレースケール + コントラスト正規化 + アンシャープマスク） */
   out = preprocessForOCR(out);
-  /* ★ JPEG品質 0.85→0.82（グレースケール後は低品質でも十分・通信量削減） */
   return out.toDataURL('image/jpeg', 0.82).replace(/^data:image\/jpeg;base64,/, '');
 }
 
 /* ============================================================
-   OCRコード正規化（表示用）: 記号除去 + H15→HF置換
+   OCRコード正規化（表示用）
    ============================================================ */
 function normalizeOcrCode(raw) {
   var s = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
@@ -1193,21 +1149,46 @@ function normalizeOcrCode(raw) {
 }
 
 /* ============================================================
-   OCRパート編集
+   ★ [BUG FIX v2.3.1] OCRパート編集
+   
+   【修正内容】
+   iOS Safari では oninput ハンドラ内で el.value を同期的に書き換えると
+   入力コンポジションエンジンが再発火し、入力した文字が重複・多重挿入される
+   バグがある（例: "J→M→W" と入力すると "JMWJMWJMJJ" になる）。
+   
+   【修正方法】
+   el.value の書き換えを setTimeout(fn, 0) で1tick遅延させ、
+   WebKitのコンポジション処理が完了してから値を差し替える。
    ============================================================ */
 function opiEdit() {
   var el = document.getElementById('opi');
-  var pos = el.selectionStart;
-  var up  = el.value.toUpperCase();
-  if (el.value !== up) { el.value = up; el.setSelectionRange(pos, pos); }
   el.className = 'editing';
   document.getElementById('oph').textContent = '✎ 編集中 — 修正後にマスタ検索してください';
-  var has = el.value.trim() && el.value.trim() !== '----';
+
+  var raw = el.value;
+  var up  = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  if (raw !== up) {
+    /* ★ iOS修正: 同期書き換えを避け1tick遅延させる */
+    var pos  = el.selectionStart;
+    var diff = raw.length - up.length;
+    setTimeout(function() {
+      el.value = up;
+      var np = Math.max(0, pos - diff);
+      el.setSelectionRange(np, np);
+      /* 遅延後にsrchボタン表示も更新 */
+      var has2 = el.value.trim() && el.value.trim() !== '----';
+      document.getElementById('sb-srch').style.display = has2 ? 'flex' : 'none';
+    }, 0);
+  }
+
+  /* setTimeout前の値で即時表示更新（遅延中もボタン状態を維持） */
+  var has = raw.trim() && raw.trim() !== '----';
   document.getElementById('sb-srch').style.display = has ? 'flex' : 'none';
 }
+
 function opiBlur() {
   var el = document.getElementById('opi');
-  var c  = el.value.trim().toUpperCase();
+  var c  = el.value.trim().toUpperCase().replace(/[^A-Z0-9\-]/g, '');
   if (!c || c === '----') return;
   el.value = c;
 }
@@ -1233,16 +1214,11 @@ function doManSrch() {
 }
 
 /* ============================================================
-   ① コード確定 → masterData照合 → フィールド反映
-   【変更】マスタ検索を stripSymbols() で正規化した値で比較
-   - 表示（ze.value）: 読み取ったままのコード
-   - マスタ検索    : stripSymbols() で記号除去して比較
-   - 登録保存      : regData() 内で stripSymbols() 適用
+   コード確定 → masterData照合 → フィールド反映
    ============================================================ */
 function applyCode(code, src) {
   curScanSrc = src;
 
-  /* ① 記号除去した値でマスタ検索 */
   var searchKey = stripSymbols(code);
   var hit = null;
   for (var i = 0; i < masterData.length; i++) {
@@ -1255,7 +1231,6 @@ function applyCode(code, src) {
   var he = document.getElementById('hinmei');
 
   if (hit) {
-    /* マスタヒット: 表示はマスタの正式コード */
     ze.value = hit.product_code;
     he.value = hit.product_name || '';
     curUnit = hit.unit || '個'; curFromMst = true;
@@ -1264,7 +1239,6 @@ function applyCode(code, src) {
     document.getElementById('qu').textContent = curUnit;
     toast('マスタ確認済。数量を入力して登録してください', 'ok');
   } else {
-    /* マスタ未登録: 表示は読み取ったまま（内部登録時はstripSymbols適用） */
     ze.value = code; he.value = ''; curUnit = '個'; curFromMst = false;
     ze.className = 'fi warn'; he.className = 'fi warn';
     he.placeholder = '（マスタ未登録 — 品名を手入力してください）';
@@ -1272,8 +1246,7 @@ function applyCode(code, src) {
     toast('マスタ未登録です。品名を手入力してください', 'info');
   }
 
-  /* QR読取のみ readonly、OCR/手入力は編集可能 */
-  if (src === 'qr' || src === 'jan') {  /* ② JAN読取もQRと同じ処理 */
+  if (src === 'qr' || src === 'jan') {
     ze.setAttribute('readonly', true);
     he.setAttribute('readonly', true);
     document.getElementById('sei').setAttribute('readonly', true);
@@ -1287,21 +1260,28 @@ function applyCode(code, src) {
 }
 
 /* ============================================================
-   図番手入力
+   ★ [BUG FIX v2.3.1] 図番手入力
+   同上: setTimeout(0) で el.value 書き換えを1tick遅延
    ============================================================ */
 function onZunoIn() {
   var el  = document.getElementById('zuno');
-  var pos = el.selectionStart;
-  var cleaned = el.value.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
-  var diff = el.value.length - cleaned.length;
-  if (el.value !== cleaned) {
-    el.value = cleaned;
-    el.setSelectionRange(Math.max(0, pos - diff), Math.max(0, pos - diff));
+  var raw     = el.value;
+  var cleaned = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
+  if (raw !== cleaned) {
+    /* ★ iOS修正: 同期書き換えを避け1tick遅延させる */
+    var pos  = el.selectionStart;
+    var diff = raw.length - cleaned.length;
+    setTimeout(function() {
+      el.value = cleaned;
+      var np = Math.max(0, pos - diff);
+      el.setSelectionRange(np, np);
+    }, 0);
   }
   curFromMst = false; curScanSrc = '';
   el.className = 'fi';
   updReg(); updManSrch();
 }
+
 function onZunoBlur() {
   var el = document.getElementById('zuno');
   el.value = el.value.trim().toUpperCase();
@@ -1311,6 +1291,30 @@ function updManSrch() {
   var code = document.getElementById('zuno').value.trim();
   var show = !camOn && code && !curFromMst;
   document.getElementById('sb-msrch').style.display = show ? 'flex' : 'none';
+}
+
+/* ============================================================
+   ★ [BUG FIX v2.3.1] 製番入力
+   インラインoninputを関数化 + setTimeout(0)で1tick遅延
+   旧: oninput="var p=this.selectionStart;this.value=this.value.replace(/[^0-9]/g,'');..."
+   新: oninput="onSeiInput(this)"
+   ============================================================ */
+function onSeiInput(el) {
+  var raw     = el.value;
+  var cleaned = raw.replace(/[^0-9]/g, '');
+  if (raw !== cleaned) {
+    /* ★ iOS修正: 同期書き換えを避け1tick遅延させる */
+    var pos  = el.selectionStart;
+    var diff = raw.length - cleaned.length;
+    setTimeout(function() {
+      el.value = cleaned;
+      var np = Math.max(0, pos - diff);
+      el.setSelectionRange(np, np);
+      updReg();
+    }, 0);
+  } else {
+    updReg();
+  }
 }
 
 /* ============================================================
@@ -1334,14 +1338,12 @@ function updReg() {
 }
 
 /* ============================================================
-   ① データ登録 → IndexedDB
-   【変更】zuno保存時に stripSymbols() で記号除去した値を使用
+   データ登録 → IndexedDB
    ============================================================ */
 async function regData() {
   var now = new Date();
   var pad = function(n) { return String(n).padStart(2, '0'); };
 
-  /* ① 表示値から記号除去して正式な図番として登録 */
   var rawZuno  = document.getElementById('zuno').value.trim();
   var zuno     = stripSymbols(rawZuno);
 
@@ -1352,7 +1354,7 @@ async function regData() {
   var rec = {
     date:          now.getFullYear() + '/' + pad(now.getMonth()+1) + '/' + pad(now.getDate()),
     time:          pad(now.getHours()) + ':' + pad(now.getMinutes()) + ':' + pad(now.getSeconds()),
-    zuno:          zuno,             /* ① 記号除去済み */
+    zuno:          zuno,
     seiban:        document.getElementById('sei').value.trim(),
     hinmei:        document.getElementById('hinmei').value.trim(),
     size:          size,
@@ -1474,7 +1476,7 @@ async function sendData() {
 }
 
 /* ============================================================
-   ② マスタビュー（メモリから描画）
+   マスタビュー（メモリから描画）
    ============================================================ */
 function rendMaster() {
   var searchEl = document.getElementById('msrchi');
@@ -1496,9 +1498,8 @@ function rendMaster() {
     list.innerHTML = '<div class="empty"><div class="e-ico">&#128269;</div><div class="e-txt">該当なし</div></div>';
     return;
   }
-  /* ② iOS対策: innerHTML一括生成ではなくDocumentFragmentで構築 */
   var frag = document.createDocumentFragment();
-  var limit = Math.min(filt.length, 200);  /* 表示上限200件（パフォーマンス） */
+  var limit = Math.min(filt.length, 200);
   for (var i = 0; i < limit; i++) {
     var p = filt[i];
     var div = document.createElement('div');
@@ -1521,8 +1522,7 @@ function rendMaster() {
 }
 
 /* ============================================================
-   ② タブ切替
-   【変更】masterタブ: データが空なら自動で loadAllMaster() を呼ぶ
+   タブ切替
    ============================================================ */
 function sw(name) {
   var tabs = ['scan','hist','master','settings'];
@@ -1537,7 +1537,6 @@ function sw(name) {
   if (name === 'hist')   rendHist();
   if (name === 'master') {
     if (masterData.length === 0 && !_loadingMaster) {
-      /* ② iPhoneでmasterDataが空のままタブを開いた場合、自動再取得 */
       loadAllMaster();
     } else {
       rendMaster();
@@ -1579,8 +1578,6 @@ function fillSel(id, items) {
 }
 
 function syncHdr() {
-  /* ヘッダーは position:sticky のためpaddingTop不要
-     --hdr CSS変数だけ更新（他のスタイル参照用） */
   var hdr = document.getElementById('hdr');
   var hh  = hdr.getBoundingClientRect().height;
   if (hh > 0) {
@@ -1633,13 +1630,12 @@ function beep() {
 }
 
 /* ============================================================
-   ② ZXing JANリーダー初期化
-   対応フォーマット: EAN-13, EAN-8, Code128, Code39, ITF, UPC-A/E
+   ZXing JANリーダー初期化
    ============================================================ */
 function initJanReader() {
   try {
     if (typeof ZXing === 'undefined') {
-      setTimeout(initJanReader, 500); /* ライブラリロード待ち */
+      setTimeout(initJanReader, 500);
       return;
     }
     var hints = new Map();
