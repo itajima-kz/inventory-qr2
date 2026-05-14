@@ -189,7 +189,6 @@
     background:#111;color:#00ff88;border:2px solid transparent;
     border-radius:6px;padding:6px;outline:none;font-family:monospace;-webkit-appearance:none;
     text-transform:uppercase;}
-  /* iOSテンキー入力中も視覚的に大文字表示するため text-transform を付与 */
   #zuno{text-transform:uppercase;}
   #opi:focus{border-color:#00ff88;}
   #opi.notfound{color:#ff5555;}
@@ -198,8 +197,14 @@
   .qty-sec{margin-top:8px;}
   .qty-lbl{font-size:16px;color:var(--blue-dk);font-weight:700;letter-spacing:.04em;margin-bottom:6px;}
   .qty-disp{display:flex;align-items:baseline;justify-content:center;gap:6px;
-    margin-bottom:8px;background:var(--surface2);border:2px solid var(--blue-lt);
-    border-radius:var(--radius-sm);padding:8px 12px;}
+    margin-bottom:4px;background:var(--surface2);border:2px solid var(--blue-lt);
+    border-radius:var(--radius-sm);padding:8px 12px;
+    user-select:none;-webkit-user-select:none;cursor:pointer;
+    transition:background .15s,border-color .15s;}
+  .qty-disp:active{background:var(--blue-lt);border-color:var(--blue);}
+  .qty-disp.pressing{background:#d8e4ff;border-color:var(--blue);}
+  .qty-hint{font-size:9px;color:var(--text-light);text-align:center;margin-bottom:8px;
+    font-weight:500;letter-spacing:.05em;}
   .qty-num{font-size:36px;font-weight:900;color:var(--primary);line-height:1;
     min-width:60px;text-align:center;font-family:monospace;}
   .qty-unit{font-size:16px;color:var(--text-mid);font-weight:500;}
@@ -241,20 +246,24 @@
     margin-bottom:8px;box-shadow:var(--shadow);border:1.5px solid var(--blue-lt);
     display:flex;align-items:flex-start;gap:10px;animation:fadeUp .2s ease;}
   .hi.sent{opacity:.48;border-color:#c8e0d4;}
+  .hi.errflag{border-color:#f5a0a0;background:#fff8f8;}
   .hi-ico{width:38px;height:38px;border-radius:10px;
     background:linear-gradient(135deg,#e8f0fe,#c8d8f8);
     display:flex;align-items:center;justify-content:center;
     font-size:18px;flex-shrink:0;margin-top:1px;}
   .hi.sent .hi-ico{background:linear-gradient(135deg,#e0f5eb,#b8e0cc);}
+  .hi.errflag .hi-ico{background:linear-gradient(135deg,#fde0e0,#f5b0b0);}
   .hi-info{flex:1;min-width:0;}
   .hi-code{font-size:14px;font-weight:700;color:var(--blue);}
   .hi-name{font-size:11px;color:var(--text-light);white-space:nowrap;overflow:hidden;text-overflow:ellipsis;margin-bottom:2px;}
   .hi-meta{font-size:10px;color:var(--text-light);}
+  .hi-err{font-size:10px;color:#c03030;font-weight:600;margin-top:2px;}
   .hi-right{text-align:right;flex-shrink:0;}
   .hi-qty{font-size:20px;font-weight:700;}
   .hi-qm{font-size:10px;color:var(--text-light);}
   .stag{display:inline-block;background:var(--green);color:#fff;
     font-size:9px;font-weight:700;padding:1px 6px;border-radius:8px;}
+  .stag.err{background:#c03030;}
   .m-tb{padding:10px 13px 6px;display:flex;gap:8px;align-items:center;}
   .srch-i{flex:1;padding:10px 13px;border:1.5px solid var(--blue-lt);
     border-radius:10px;font-size:14px;font-family:var(--font);
@@ -287,9 +296,9 @@
     border:1.5px solid #f5c0c0;border-radius:10px;font-size:13px;font-weight:700;
     font-family:var(--font);cursor:pointer;-webkit-appearance:none;}
   .d-btn:active{background:#ffe0e0;}
-  #mover{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
+  #mover,#qtymover{display:none;position:fixed;inset:0;background:rgba(0,0,0,.55);
     z-index:300;align-items:center;justify-content:center;}
-  #mover.on{display:flex;}
+  #mover.on,#qtymover.on{display:flex;}
   .m-box{background:var(--surface);border-radius:20px;padding:24px 22px;
     max-width:300px;width:88%;text-align:center;
     box-shadow:0 10px 36px rgba(0,0,0,.22);animation:fadeUp .25s ease;}
@@ -299,6 +308,24 @@
   .m-ok{width:100%;padding:12px;font-size:15px;font-weight:700;
     background:linear-gradient(135deg,#00b09b,#5cb85c);border:none;
     border-radius:11px;color:#fff;cursor:pointer;font-family:var(--font);-webkit-appearance:none;}
+  /* ★ [v2.4.0] 数量直接入力モーダル */
+  .qty-modal-box{background:var(--surface);border-radius:20px;padding:22px;
+    max-width:320px;width:88%;text-align:center;
+    box-shadow:0 10px 36px rgba(0,0,0,.22);animation:fadeUp .25s ease;}
+  .qty-modal-title{font-size:16px;font-weight:800;color:var(--blue-dk);margin-bottom:14px;}
+  .qty-modal-input{width:100%;font-family:monospace;font-size:36px;font-weight:800;
+    text-align:center;letter-spacing:2px;padding:14px;
+    border:2px solid var(--blue-lt);border-radius:var(--radius-xs);
+    background:var(--surface2);color:var(--text);outline:none;-webkit-appearance:none;}
+  .qty-modal-input:focus{border-color:var(--blue);
+    box-shadow:0 0 0 3px rgba(46,107,224,.18);background:var(--surface);}
+  .qty-modal-btns{display:flex;gap:8px;margin-top:14px;}
+  .qty-modal-btn{padding:13px;font-size:14px;font-weight:700;font-family:var(--font);
+    border-radius:11px;cursor:pointer;-webkit-appearance:none;border:none;}
+  .qty-modal-btn-cancel{flex:1;background:#f0f4fb;border:1.5px solid var(--blue-lt);
+    color:var(--text-mid);}
+  .qty-modal-btn-ok{flex:2;background:linear-gradient(135deg,var(--blue),var(--primary));
+    color:#fff;box-shadow:0 2px 8px rgba(46,107,224,.30);}
   .empty{text-align:center;padding:40px 18px;color:var(--text-light);}
   .e-ico{font-size:42px;margin-bottom:10px;}
   .e-txt{font-size:13px;line-height:1.8;}
@@ -429,16 +456,17 @@
       </div>
       <div class="fw">
         <label class="fl" for="its">在庫区分</label>
-        <select class="fi" id="its" onchange="updReg()">
+        <select class="fi" id="its" onchange="onItypeChange()">
           <option value="">&#9135; 選択してください &#9135;</option>
         </select>
       </div>
       <div class="qty-sec">
         <div class="qty-lbl">数量</div>
-        <div class="qty-disp">
+        <div class="qty-disp" id="qtyDisp">
           <span class="qty-num" id="qn">0</span>
           <span class="qty-unit" id="qu">個</span>
         </div>
+        <div class="qty-hint">長押しで直接入力</div>
         <div class="qty-grid">
           <button type="button" class="qbtn dec" onclick="adjQ(-100)">-100</button>
           <button type="button" class="qbtn dec" onclick="adjQ(-10)">-10</button>
@@ -508,14 +536,18 @@
             <b>② 起動時に自動でマスタデータを取得</b><br>
             　GASへの接続はコード内に設定済みです<br><br>
             <b>③ スキャンタブでQRまたはOCRで読取</b><br>
-            　QR: 読取後は図番・品名・製番は変更不可<br>
+            　QR/JAN: 図番・製番は変更不可（マスタヒット時は品名も変更不可）<br>
+            　QR/JAN: マスタ未登録時は品名のみ手入力可<br>
             　OCR: 読取後も図番・品名・製番を手修正可<br>
             　カメラ不使用時は直接入力も可能<br><br>
-            <b>④ 場所・担当者・在庫区分を選択</b><br><br>
+            <b>④ 場所・担当者・在庫区分を選択</b><br>
+            　選択値は次回起動時に自動復元されます<br><br>
             <b>⑤ 数量ボタンで入力 → 登録</b><br>
+            　数量表示を長押しで直接入力モーダルが開きます<br>
             　端末内に保存（オフライン対応）<br><br>
             <b>⑥ 履歴タブで一括送信</b><br>
-            　GAS → スプレッドシート → ASTERIA → IBM i
+            　GAS → スプレッドシート → ASTERIA → IBM i<br>
+            　送信エラーの分は未送信のまま残り、再送可能
           </div>
         </div>
       </div>
@@ -524,10 +556,10 @@
       <div class="ss-lbl">バージョン</div>
       <div class="s-card">
         <div class="s-row">
-          <div class="s-info">DX棚卸アプリ v2.3.2<br>
-          ローカルDB: IndexedDB / QRエンジン: jsQR 1.4.0<br>
+          <div class="s-info">DX棚卸アプリ v2.4.0<br>
+          ローカルDB: IndexedDB / QRエンジン: jsQR 1.4.0 / バーコード: ZXing 0.19.1<br>
           OCR: Google Cloud Vision API (GAS経由)<br>
-          <span style="color:#0f9e6e;font-weight:700;">✔ iOS入力バグ修正済み（QWERTY重複・テンキーマルチタップ対応）</span></div>
+          <span style="color:#0f9e6e;font-weight:700;">✔ Bug-1〜9 修正済み（品名ロック/担当者復元/末尾0リスト連携 等）</span></div>
         </div>
       </div>
     </div>
@@ -536,7 +568,7 @@
 </div><!-- /main -->
 </div><!-- /app-wrap -->
 
-<!-- Modal -->
+<!-- 登録完了モーダル -->
 <div id="mover">
   <div class="m-box">
     <div class="m-ico">&#9989;</div>
@@ -545,6 +577,21 @@
     <button type="button" class="m-ok" onclick="closeMod()">OK</button>
   </div>
 </div>
+
+<!-- ★ [v2.4.0] 数量直接入力モーダル -->
+<div id="qtymover">
+  <div class="qty-modal-box">
+    <div class="qty-modal-title">&#128290; 数量を直接入力</div>
+    <input type="number" class="qty-modal-input" id="qtyDirectInput"
+      inputmode="numeric" pattern="[0-9]*" min="0" step="1" value="0"
+      autocomplete="off">
+    <div class="qty-modal-btns">
+      <button type="button" class="qty-modal-btn qty-modal-btn-cancel" onclick="closeQtyInputModal()">キャンセル</button>
+      <button type="button" class="qty-modal-btn qty-modal-btn-ok" onclick="applyQtyInput()">設定</button>
+    </div>
+  </div>
+</div>
+
 <div id="ghost-block" style="display:none;position:fixed;inset:0;z-index:399;background:transparent;"></div>
 <div id="toast"></div>
 <div id="load"><div class="spin"></div><div class="ld-lbl" id="ldlbl">処理中...</div></div>
@@ -554,7 +601,10 @@
 /* ============================================================
    GAS URL（設定UIには表示しない）
    ============================================================ */
-var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbw_sVBU83HQzh2prLGSdzwrZe0qcs6O3QluvegFNSb54HJXejEKVW4zqhslSrClpgMj/exec';
+var GAS_ENDPOINT = 'https://script.google.com/macros/s/AKfycbx1fxWcObxTgKU9dNLhTYR7vOf4v-Fmt7onmXbyqPQDnVytA77EPB9_GNHDsVM2IMXv/exec';
+
+/* ★ [v2.4.0 / Bug-7] タイムアウト60秒 */
+var GAS_TIMEOUT_MS = 60000;
 
 /* ============================================================
    定数・グローバル状態
@@ -564,9 +614,10 @@ var SCAN_ASPECT_QR  = 1.333;
 
 var OCR_MAX_PX = 800;
 
-var masterData = [];
-var dropData   = { departments:[], inventoryTypes:[] };
-var persMap    = {};
+var masterData   = [];
+var dropData     = { departments:[], inventoryTypes:[] };
+var persMap      = {};
+var tailZeroSet  = new Set();   /* ★ [Bug-9] 末尾0リスト */
 
 var curQty     = 0;
 var curUnit    = '個';
@@ -586,17 +637,29 @@ var _setCamH   = null;
 var COOLDOWN   = 2200;
 
 /* ============================================================
-   末尾ゼロ・空白除去（JAN / QR 共通）
+   ★ [Bug-9] 末尾0・末尾空白除去（末尾0リスト連携版）
+   
+   【ロジック】
+   - 末尾0を1文字ずつ削っていき、末尾0リストに合致したらそこで止める
+   - リストに合致しなかった場合は末尾0を全て削る（桁数無制限）
+   - 比較・出力ともにハイフン無し・大文字
    ============================================================ */
 function stripTrailingZeroSpace(code) {
-  var s = code;
-  while (s.length >= 7) {
-    var last = s[s.length - 1];
-    if (last !== '0' && last !== ' ') break;
-    s = s.slice(0, -1);
-    if (s.length < 7) break;
+  if (!code) return '';
+  // 末尾の空白除去 + ハイフン除去 + 大文字化（比較用の正規化）
+  var s = String(code).replace(/[\s]+$/, '').toUpperCase().replace(/-/g, '');
+  
+  // 末尾0を1文字ずつ削りながら、末尾0リストとの一致を都度確認
+  var stripped = s;
+  while (stripped.length > 0 && stripped[stripped.length - 1] === '0') {
+    if (tailZeroSet.has(stripped)) {
+      // 末尾0リストに登録あり → ここで止める（正規コード）
+      return stripped;
+    }
+    stripped = stripped.slice(0, -1);
   }
-  return s;
+  // リストに合致しなかった or 末尾0を全て削った状態
+  return stripped;
 }
 
 function stripSymbols(code) {
@@ -604,7 +667,7 @@ function stripSymbols(code) {
 }
 
 /* ============================================================
-   ★ OCR精度向上のための画像前処理
+   OCR精度向上のための画像前処理
    ============================================================ */
 function preprocessForOCR(srcCanvas) {
   var w = srcCanvas.width, h = srcCanvas.height;
@@ -705,7 +768,7 @@ function dbC(s) {
 }
 
 /* ============================================================
-   GAS通信
+   ★ [Bug-7] GAS通信（60秒タイムアウト付き）
    ============================================================ */
 function gasGet(action, params) {
   params = params || {};
@@ -715,24 +778,35 @@ function gasGet(action, params) {
     for (var i = 0; i < keys.length; i++) {
       qs += '&' + encodeURIComponent(keys[i]) + '=' + encodeURIComponent(params[keys[i]]);
     }
-    fetch(GAS_ENDPOINT + '?' + qs, { redirect: 'follow' })
-      .then(function(r) { return r.json(); })
+    var ctrl = new AbortController();
+    var timer = setTimeout(function() {
+      ctrl.abort();
+      reject(new Error('タイムアウト（60秒）'));
+    }, GAS_TIMEOUT_MS);
+    fetch(GAS_ENDPOINT + '?' + qs, { redirect: 'follow', signal: ctrl.signal })
+      .then(function(r) { clearTimeout(timer); return r.json(); })
       .then(resolve)
-      .catch(reject);
+      .catch(function(e) { clearTimeout(timer); reject(e); });
   });
 }
 
 function gasPost(body) {
   return new Promise(function(resolve, reject) {
+    var ctrl = new AbortController();
+    var timer = setTimeout(function() {
+      ctrl.abort();
+      reject(new Error('タイムアウト（60秒）'));
+    }, GAS_TIMEOUT_MS);
     fetch(GAS_ENDPOINT, {
       method: 'POST',
       headers: { 'Content-Type': 'text/plain' },
       redirect: 'follow',
-      body: JSON.stringify(body)
+      body: JSON.stringify(body),
+      signal: ctrl.signal
     })
-      .then(function(r) { return r.json(); })
+      .then(function(r) { clearTimeout(timer); return r.json(); })
       .then(resolve)
-      .catch(reject);
+      .catch(function(e) { clearTimeout(timer); reject(e); });
   });
 }
 
@@ -745,6 +819,7 @@ async function init() {
   setInterval(updClock, 1000); updClock();
   setMode('jan');
   initJanReader();
+  setupQtyLongPress();           /* ★ [v2.4.0] 数量長押し設定 */
   await loadAllMaster();
   restoreOp();
   await rendHist();
@@ -759,7 +834,11 @@ function updClock() {
 }
 
 /* ============================================================
-   マスタデータ一括読込
+   ★ [v2.4.0] マスタデータ一括読込
+   - Promise.all で並列化
+   - getAllPersonnel で1発取得（N+1 fetch 解消）
+   - getTailZeroList も同時取得
+   - reloadMaster 時は force=1 でキャッシュ無視（Bug-8）
    ============================================================ */
 var _loadingMaster = false;
 
@@ -770,11 +849,25 @@ async function loadAllMaster(isReload) {
     ? 'マスタデータ再読み込み中…'
     : 'アプリ起動中…\nマスタデータを読み込んでいます。\nしばらくお待ちください。');
   try {
-    var dd     = await gasGet('getDropdowns');
-    var master = await gasGet('getMasterList');
+    var forceParam = isReload ? { force: '1' } : {};
+    var results = await Promise.all([
+      gasGet('getDropdowns',     forceParam),
+      gasGet('getMasterList',    forceParam),
+      gasGet('getAllPersonnel',  forceParam),
+      gasGet('getTailZeroList',  forceParam)
+    ]);
+    var dd       = results[0];
+    var master   = results[1];
+    var allPers  = results[2];
+    var tailZero = results[3];
 
-    dropData   = dd || { departments:[], inventoryTypes:[] };
-    masterData = Array.isArray(master) ? master : [];
+    dropData    = dd || { departments:[], inventoryTypes:[] };
+    masterData  = Array.isArray(master) ? master : [];
+    persMap     = (allPers && typeof allPers === 'object') ? allPers : {};
+    tailZeroSet = new Set(
+      (Array.isArray(tailZero) ? tailZero : [])
+        .map(function(c) { return String(c).toUpperCase().replace(/-/g, ''); })
+    );
 
     var depts = (dropData.departments   || []);
     var stocks = (dropData.inventoryTypes || []);
@@ -782,15 +875,9 @@ async function loadAllMaster(isReload) {
     fillSel('ds',  depts);
     fillSel('its', stocks);
 
-    persMap = {};
-    for (var i = 0; i < depts.length; i++) {
-      var pr = await gasGet('getPersonnel', { department: depts[i] });
-      persMap[depts[i]] = (pr && pr.personnel) ? pr.personnel : [];
-    }
-
     _loadingMaster = false;
     hideLoad();
-    toast('マスタ ' + masterData.length + '件 読込完了', 'ok');
+    toast('マスタ ' + masterData.length + '件 / 末尾0リスト ' + tailZeroSet.size + '件 読込完了', 'ok');
     var mmeta = document.getElementById('mmeta');
     if (mmeta) mmeta.textContent = masterData.length + '件  / 最終更新: ' + new Date().toLocaleTimeString('ja-JP');
     rendMaster();
@@ -805,7 +892,7 @@ async function loadAllMaster(isReload) {
 
 async function reloadMaster() {
   if (_loadingMaster) return;
-  await loadAllMaster(true);
+  await loadAllMaster(true);    /* ★ force=1 でキャッシュバイパス */
 }
 
 /* ============================================================
@@ -833,34 +920,74 @@ function onPers() {
   updLock(); updReg();
 }
 
+/* ★ [v2.4.0] 在庫区分も sessionStorage 永続化 */
+function onItypeChange() {
+  var v = document.getElementById('its').value;
+  try { sessionStorage.setItem('inv_itype', v); } catch(e){}
+  updReg();
+}
+
+/* ============================================================
+   ★ [Bug-2] restoreOp 担当者の復元修正 + 在庫区分の復元
+   
+   旧バグ:
+     restoreOp → onDept() を呼ぶと、onDept 内で
+     sessionStorage.removeItem('inv_pers') が実行され、
+     2回目以降のリロードで担当者が復元されなくなる。
+   修正:
+     担当者選択後、sessionStorage に書き戻す。
+   追加:
+     在庫区分も同様に復元。
+   ============================================================ */
 function restoreOp() {
   try {
-    var d = sessionStorage.getItem('inv_dept') || '';
-    var p = sessionStorage.getItem('inv_pers') || '';
+    var d   = sessionStorage.getItem('inv_dept')  || '';
+    var p   = sessionStorage.getItem('inv_pers')  || '';
+    var inv = sessionStorage.getItem('inv_itype') || '';
+
     if (d) {
       svDept = d;
       var ds = document.getElementById('ds');
       if (ds) {
         ds.value = d;
         if (ds.value === d) {
-          onDept();
+          onDept();      /* この中で inv_pers がストレージから削除される */
           if (p) {
-            svPers = p;
             var ps = document.getElementById('ps');
-            if (ps) { ps.value = p; if (ps.value === p) svPers = p; }
+            if (ps) {
+              ps.value = p;
+              if (ps.value === p) {
+                svPers = p;
+                /* ★ 修正: 復元した担当者を sessionStorage に書き戻す */
+                try { sessionStorage.setItem('inv_pers', p); } catch(e3){}
+              }
+            }
           }
         }
       }
     }
+
+    /* ★ [v2.4.0] 在庫区分の復元 */
+    if (inv) {
+      var its = document.getElementById('its');
+      if (its) {
+        its.value = inv;
+        /* マッチしなかった場合は空のまま */
+      }
+    }
   } catch(e2) {}
   updLock();
+  updReg();
 }
 
 function clrOp() {
   svDept = ''; svPers = '';
   document.getElementById('ds').value = '';
   document.getElementById('ps').innerHTML = '<option value="">&#9135; 選択 &#9135;</option>';
-  try { sessionStorage.removeItem('inv_dept'); sessionStorage.removeItem('inv_pers'); } catch(e2){}
+  try {
+    sessionStorage.removeItem('inv_dept');
+    sessionStorage.removeItem('inv_pers');
+  } catch(e2){}
   updLock(); updReg();
   toast('場所・担当者をクリアしました', 'ok');
 }
@@ -1145,7 +1272,8 @@ function capFrame() {
 }
 
 /* ============================================================
-   OCRコード正規化（表示用）
+   OCRコード正規化（表示用 — ハイフン残す）
+   OCR読取時のみ画面表示はハイフン有りでOK（Bug-3）
    ============================================================ */
 function normalizeOcrCode(raw) {
   var s = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
@@ -1154,20 +1282,9 @@ function normalizeOcrCode(raw) {
 }
 
 /* ============================================================
-   ★ [BUG FIX v2.3.2] OCRパート編集
-   
-   【追加修正】iPhone テンキー(マルチタップ)入力対応
-   IME composition中にel.valueを書き換えるとIMEの内部状態が壊れ、
-   2文字目以降の循環入力(A→B→C)が機能しなくなる。
-   - oninput: e.isComposingがtrueなら何もしない
-   - oncompositionend: composition確定後に整形を実行
-   - CSS: text-transform:uppercaseで視覚的に大文字表示
-   
-   【既存修正】iOS Safari の oninput内 el.value 同期書き換え時の
-   入力コンポジション再発火による文字重複バグを setTimeout(0) で回避。
+   OCR編集
    ============================================================ */
 function opiEdit(e) {
-  /* ★ iOSテンキー(マルチタップ)入力中はスキップ */
   if (e && e.isComposing) return;
 
   var el = document.getElementById('opi');
@@ -1177,7 +1294,6 @@ function opiEdit(e) {
   var raw = el.value;
   var up  = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
   if (raw !== up) {
-    /* ★ iOS QWERTY重複入力バグ修正: 同期書き換えを避け1tick遅延させる */
     var pos  = el.selectionStart;
     var diff = raw.length - up.length;
     setTimeout(function() {
@@ -1221,12 +1337,20 @@ function doManSrch() {
 }
 
 /* ============================================================
-   コード確定 → masterData照合 → フィールド反映
+   ★ [Bug-1, Bug-3] コード確定 → masterData照合 → フィールド反映
+   
+   修正点:
+   - Bug-1: マスタ未登録時、QR/JANでも品名を編集可能にする
+   - Bug-3: マスタ表示はハイフン無し（IBMi マスタはハイフン無し前提）
+            OCR未ヒット時のみ画面表示にハイフン残してOK
    ============================================================ */
 function applyCode(code, src) {
   curScanSrc = src;
 
+  // 比較用キー（ハイフン除去・大文字）
   var searchKey = stripSymbols(code);
+  
+  // マスタ検索
   var hit = null;
   for (var i = 0; i < masterData.length; i++) {
     if (stripSymbols(masterData[i].product_code) === searchKey) {
@@ -1238,6 +1362,7 @@ function applyCode(code, src) {
   var he = document.getElementById('hinmei');
 
   if (hit) {
+    // マスタヒット時: 画面表示はマスタの値（ハイフン無し）
     ze.value = hit.product_code;
     he.value = hit.product_name || '';
     curUnit = hit.unit || '個'; curFromMst = true;
@@ -1246,16 +1371,28 @@ function applyCode(code, src) {
     document.getElementById('qu').textContent = curUnit;
     toast('マスタ確認済。数量を入力して登録してください', 'ok');
   } else {
-    ze.value = code; he.value = ''; curUnit = '個'; curFromMst = false;
+    // マスタ未登録: OCRなら元コード（ハイフン有り可）、それ以外はハイフン無し
+    ze.value = (src === 'ocr') ? code : searchKey;
+    he.value = '';
+    curUnit = '個'; curFromMst = false;
     ze.className = 'fi warn'; he.className = 'fi warn';
     he.placeholder = '（マスタ未登録 — 品名を手入力してください）';
     document.getElementById('qu').textContent = '個';
     toast('マスタ未登録です。品名を手入力してください', 'info');
   }
 
+  /* ★ [Bug-1 修正] QR/JAN後の readonly 設定
+     - 図番: 常にロック（仕様通り）
+     - 品名: マスタヒット時のみロック（未登録時は手入力可能）
+     - 製番: 常にロック（仕様通り）
+  */
   if (src === 'qr' || src === 'jan') {
     ze.setAttribute('readonly', true);
-    he.setAttribute('readonly', true);
+    if (hit) {
+      he.setAttribute('readonly', true);
+    } else {
+      he.removeAttribute('readonly');   /* ★ 未登録時は品名編集可 */
+    }
     document.getElementById('sei').setAttribute('readonly', true);
   } else {
     ze.removeAttribute('readonly');
@@ -1267,18 +1404,15 @@ function applyCode(code, src) {
 }
 
 /* ============================================================
-   ★ [BUG FIX v2.3.2] 図番手入力
-   同上: iPhone テンキー対応 + iOS QWERTY 重複バグ対応
+   図番手入力
    ============================================================ */
 function onZunoIn(e) {
-  /* ★ iOSテンキー(マルチタップ)入力中はスキップ */
   if (e && e.isComposing) return;
 
   var el  = document.getElementById('zuno');
   var raw     = el.value;
   var cleaned = raw.toUpperCase().replace(/[^A-Z0-9\-]/g, '');
   if (raw !== cleaned) {
-    /* ★ iOS修正: 同期書き換えを避け1tick遅延させる */
     var pos  = el.selectionStart;
     var diff = raw.length - cleaned.length;
     setTimeout(function() {
@@ -1304,17 +1438,14 @@ function updManSrch() {
 }
 
 /* ============================================================
-   ★ [BUG FIX v2.3.2] 製番入力
-   同上: iPhone テンキー対応 + iOS QWERTY 重複バグ対応
+   製番入力
    ============================================================ */
 function onSeiInput(el, e) {
-  /* ★ iOSテンキー(マルチタップ)入力中はスキップ */
   if (e && e.isComposing) return;
 
   var raw     = el.value;
   var cleaned = raw.replace(/[^0-9]/g, '');
   if (raw !== cleaned) {
-    /* ★ iOS修正: 同期書き換えを避け1tick遅延させる */
     var pos  = el.selectionStart;
     var diff = raw.length - cleaned.length;
     setTimeout(function() {
@@ -1338,6 +1469,67 @@ function adjQ(d) {
 }
 
 /* ============================================================
+   ★ [v2.4.0] 数量長押しで直接入力モーダル
+   ============================================================ */
+var qtyLongPressTimer = null;
+var qtyLongPressFired = false;
+
+function setupQtyLongPress() {
+  var el = document.getElementById('qtyDisp');
+  if (!el) return;
+
+  var startTimer = function(e) {
+    qtyLongPressFired = false;
+    el.classList.add('pressing');
+    qtyLongPressTimer = setTimeout(function() {
+      qtyLongPressFired = true;
+      el.classList.remove('pressing');
+      openQtyInputModal();
+    }, 500);
+  };
+  var clearTimer = function() {
+    if (qtyLongPressTimer) {
+      clearTimeout(qtyLongPressTimer);
+      qtyLongPressTimer = null;
+    }
+    el.classList.remove('pressing');
+  };
+
+  el.addEventListener('touchstart', startTimer, { passive: true });
+  el.addEventListener('touchend',   clearTimer);
+  el.addEventListener('touchmove',  clearTimer);
+  el.addEventListener('touchcancel',clearTimer);
+  el.addEventListener('mousedown',  startTimer);
+  el.addEventListener('mouseup',    clearTimer);
+  el.addEventListener('mouseleave', clearTimer);
+}
+
+function openQtyInputModal() {
+  var inp = document.getElementById('qtyDirectInput');
+  inp.value = curQty || 0;
+  document.getElementById('qtymover').classList.add('on');
+  setTimeout(function() { inp.focus(); inp.select(); }, 100);
+}
+
+function closeQtyInputModal() {
+  document.getElementById('qtymover').classList.remove('on');
+}
+
+function applyQtyInput() {
+  var inp = document.getElementById('qtyDirectInput');
+  var val = parseInt(inp.value, 10);
+  if (isNaN(val) || val < 0) {
+    toast('0以上の数値を入力してください', 'err');
+    return;
+  }
+  curQty = val;
+  document.getElementById('qn').textContent = curQty;
+  closeQtyInputModal();
+  updReg();
+  toast('数量を ' + curQty + ' に設定しました', 'ok');
+}
+
+/* ============================================================
    登録ボタン活性判定
    ============================================================ */
 function updReg() {
@@ -1355,12 +1547,15 @@ async function regData() {
   var now = new Date();
   var pad = function(n) { return String(n).padStart(2, '0'); };
 
-  var rawZuno  = document.getElementById('zuno').value.trim();
-  var zuno     = stripSymbols(rawZuno);
+  /* ★ [Bug-3] 保存時はハイフン除去版で統一（IBMiマスタに合わせる） */
+  var rawZuno = document.getElementById('zuno').value.trim();
+  var zuno    = stripSymbols(rawZuno);
 
   var size = '';
   for (var i = 0; i < masterData.length; i++) {
-    if (stripSymbols(masterData[i].product_code) === zuno) { size = masterData[i].size || ''; break; }
+    if (stripSymbols(masterData[i].product_code) === zuno) {
+      size = masterData[i].size || ''; break;
+    }
   }
   var rec = {
     date:          now.getFullYear() + '/' + pad(now.getMonth()+1) + '/' + pad(now.getDate()),
@@ -1375,7 +1570,8 @@ async function regData() {
     personnel:     document.getElementById('ps').value,
     inventoryType: document.getElementById('its').value,
     scanned_at:    now.toISOString(),
-    sent_flag:     0
+    sent_flag:     0,
+    last_error:    ''       /* ★ [Bug-6] エラー情報を保持 */
   };
   await dbP('inv', rec);
   await updBadge();
@@ -1393,7 +1589,8 @@ function openMod(msg, sub) {
 function closeMod() { document.getElementById('mover').classList.remove('on'); resetScan(); }
 
 /* ============================================================
-   リセット
+   ★ [v2.4.0] リセット
+   在庫区分は永続化値を維持（毎回再選択を不要に）
    ============================================================ */
 function resetScan() {
   if (camOn) stopCam();
@@ -1410,7 +1607,12 @@ function resetScan() {
   he.placeholder = 'マスタ検索で自動入力、または手入力';
   document.getElementById('sei').value = '';
   document.getElementById('sei').removeAttribute('readonly');
-  document.getElementById('its').value = '';
+
+  /* ★ 在庫区分は sessionStorage の永続化値を維持 */
+  var savedItype = '';
+  try { savedItype = sessionStorage.getItem('inv_itype') || ''; } catch(e){}
+  document.getElementById('its').value = savedItype;
+
   document.getElementById('sb-msrch').style.display = 'none';
   curQty = 0; curUnit = '個'; curFromMst = false; curScanSrc = '';
   document.getElementById('qn').textContent = '0';
@@ -1434,18 +1636,24 @@ async function rendHist() {
     return;
   }
   list.innerHTML = sorted.map(function(i) {
-    return '<div class="hi ' + (i.sent_flag ? 'sent' : '') + '">' +
-      '<div class="hi-ico">' + (i.sent_flag ? '&#9989;' : '&#128230;') + '</div>' +
+    var hasError = !i.sent_flag && i.last_error;
+    var classes = 'hi';
+    if (i.sent_flag) classes += ' sent';
+    else if (hasError) classes += ' errflag';
+
+    return '<div class="' + classes + '">' +
+      '<div class="hi-ico">' + (i.sent_flag ? '&#9989;' : (hasError ? '&#9888;' : '&#128230;')) + '</div>' +
       '<div class="hi-info">' +
         '<div class="hi-code">' + h(i.zuno) + '</div>' +
         '<div class="hi-name">' + h(i.hinmei || '—') + '</div>' +
         '<div class="hi-meta">' + h(i.date) + ' ' + h(i.time) + ' / ' + h(i.department) + ' / ' + h(i.personnel) +
           (i.seiban ? ' / 製番:' + h(i.seiban) : '') + '</div>' +
+        (hasError ? '<div class="hi-err">⚠ ' + h(i.last_error) + '</div>' : '') +
       '</div>' +
       '<div class="hi-right">' +
         '<div class="hi-qty">' + i.quantity + '<span style="font-size:11px;font-weight:400"> ' + h(i.unit || '個') + '</span></div>' +
         '<div class="hi-qm">' + h(i.inventoryType || '') + '</div>' +
-        (i.sent_flag ? '<span class="stag">送信済</span>' : '') +
+        (i.sent_flag ? '<span class="stag">送信済</span>' : (hasError ? '<span class="stag err">エラー</span>' : '')) +
       '</div>' +
     '</div>';
   }).join('');
@@ -1460,7 +1668,11 @@ async function updBadge() {
 }
 
 /* ============================================================
-   一括送信
+   ★ [Bug-6] 一括送信（item毎に成否判定）
+   
+   GASから返ってくる results 配列で各itemの成否を確認し、
+   - success: sent_flag=1（送信済み扱い）
+   - error:   sent_flag=0 のまま（未送信のまま残し、再送可能に）
    ============================================================ */
 async function sendData() {
   var all  = await dbA('inv');
@@ -1479,11 +1691,39 @@ async function sendData() {
   };
   try {
     var res = await gasPost(payload);
-    for (var j = 0; j < pend.length; j++) { pend[j].sent_flag = 1; await dbP('inv', pend[j]); }
+    var results = res.results || [];
+
+    /* ★ 各itemの結果でsent_flagを判定 */
+    var successCount = 0;
+    var errorCount   = 0;
+    for (var j = 0; j < pend.length; j++) {
+      var r = results[j];
+      if (r && r.success) {
+        pend[j].sent_flag  = 1;
+        pend[j].last_error = '';
+        await dbP('inv', pend[j]);
+        successCount++;
+      } else {
+        /* エラー: sent_flagを立てず、エラー情報のみ更新 */
+        pend[j].sent_flag  = 0;
+        pend[j].last_error = (r && r.error) ? r.error : '不明なエラー';
+        await dbP('inv', pend[j]);
+        errorCount++;
+      }
+    }
+
     hideLoad();
-    toast((res.saved || pend.length) + '件を送信しました', 'ok');
-    await rendHist(); await updBadge();
-  } catch(e) { hideLoad(); toast('送信エラー: ' + e.message, 'err'); }
+    if (errorCount === 0) {
+      toast(successCount + '件を送信しました', 'ok');
+    } else {
+      toast('成功:' + successCount + '件 / エラー:' + errorCount + '件 — エラー分は未送信のまま', 'err');
+    }
+    await rendHist();
+    await updBadge();
+  } catch(e) {
+    hideLoad();
+    toast('送信エラー: ' + e.message, 'err');
+  }
 }
 
 /* ============================================================
